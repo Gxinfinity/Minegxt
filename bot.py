@@ -439,83 +439,158 @@ async def recover_queue():
 #=========================================
 
 #=========================================
-#4. GAMES LOGIC
+#=========================================
+#4. GAMES LOGIC (FINAL FIXED)
 #=========================================
 
 def smart_ttt_move(board):
 
-    ws = [
-        (0,1,2),
-        (3,4,5),
-        (6,7,8),
-        (0,3,6),
-        (1,4,7),
-        (2,5,8),
-        (0,4,8),
-        (2,4,6)
-    ]
+    try:
 
-    for char in ["⭕", "❌"]:
+        ws = [
+            (0,1,2),
+            (3,4,5),
+            (6,7,8),
+            (0,3,6),
+            (1,4,7),
+            (2,5,8),
+            (0,4,8),
+            (2,4,6)
+        ]
 
-        for a, b, c in ws:
+        # Win / Block Logic
+        for char in ["⭕", "❌"]:
 
-            line = [board[a], board[b], board[c]]
+            for a, b, c in ws:
 
-            if line.count(char) == 2 and line.count("") == 1:
-                return [a, b, c][line.index("")]
+                line = [
+                    board[a],
+                    board[b],
+                    board[c]
+                ]
 
-    if board[4] == "":
-        return 4
+                if (
+                    line.count(char) == 2
+                    and line.count("") == 1
+                ):
 
-    empty = [i for i, v in enumerate(board) if not v]
+                    return [a, b, c][
+                        line.index("")
+                    ]
 
-    return random.choice(empty) if empty else None
+        # Center Priority
+        if board[4] == "":
+            return 4
+
+        # Random Empty
+        empty = [
+            i for i, v in enumerate(board)
+            if not v
+        ]
+
+        return (
+            random.choice(empty)
+            if empty
+            else None
+        )
+
+    except Exception as e:
+
+        logger.error(
+            f"TTT Move Error: {e}"
+        )
+
+        return None
 
 
 def get_ttt_kb(chat_id):
 
-    b = GAME_STATE.get(chat_id, [""] * 9)
+    try:
 
-    kb = [
-        [
-            InlineKeyboardButton(
-                b[i * 3 + j] or " ",
-                callback_data=f"ttt_{i * 3 + j}"
-            )
-            for j in range(3)
-        ]
-        for i in range(3)
-    ]
-
-    kb.append([
-        InlineKeyboardButton(
-            "Reset 🔄",
-            callback_data="ttt_reset"
+        b = GAME_STATE.get(
+            chat_id,
+            [""] * 9
         )
-    ])
 
-    return InlineKeyboardMarkup(kb)
+        kb = [
+            [
+                InlineKeyboardButton(
+                    b[i * 3 + j] or " ",
+                    callback_data=f"ttt_{i * 3 + j}"
+                )
+                for j in range(3)
+            ]
+            for i in range(3)
+        ]
+
+        kb.append(
+            [
+                InlineKeyboardButton(
+                    "Reset 🔄",
+                    callback_data="ttt_reset"
+                )
+            ]
+        )
+
+        return InlineKeyboardMarkup(kb)
+
+    except Exception as e:
+
+        logger.error(
+            f"TTT Keyboard Error: {e}"
+        )
+
+        return InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton(
+                        "Reset 🔄",
+                        callback_data="ttt_reset"
+                    )
+                ]
+            ]
+        )
 
 
 def check_ttt_winner(board):
 
-    ws = [
-        (0,1,2),
-        (3,4,5),
-        (6,7,8),
-        (0,3,6),
-        (1,4,7),
-        (2,5,8),
-        (0,4,8),
-        (2,4,6)
-    ]
+    try:
 
-    for a, b, c in ws:
+        ws = [
+            (0,1,2),
+            (3,4,5),
+            (6,7,8),
+            (0,3,6),
+            (1,4,7),
+            (2,5,8),
+            (0,4,8),
+            (2,4,6)
+        ]
 
-        if board[a] == board[b] == board[c] != "":
-            return board[a]
+        for a, b, c in ws:
 
-    return "Draw" if "" not in board else None
+            if (
+                board[a]
+                == board[b]
+                == board[c]
+                != ""
+            ):
+
+                return board[a]
+
+        return (
+            "Draw"
+            if "" not in board
+            else None
+        )
+
+    except Exception as e:
+
+        logger.error(
+            f"TTT Winner Error: {e}"
+        )
+
+        return None
 #=========================================
 
 #=========================================
