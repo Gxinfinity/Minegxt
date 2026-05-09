@@ -826,6 +826,10 @@ async def dispatcher(_, m: Message):
                 f"Admin Check Error: {e}"
             )
 
+            return await m.reply(
+                "❌ Admin check failed."
+            )
+
     # HELP
     if cmd == "help":
 
