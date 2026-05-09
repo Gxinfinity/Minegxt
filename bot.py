@@ -27,12 +27,12 @@ from yt_dlp import YoutubeDL
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("RuhiSupreme")
 
-API_ID = 123456
-API_HASH = "API_HASH"
-BOT_TOKEN = "BOT_TOKEN"
-SESSION_STRING = "SESSION_STRING"
-GEMINI_API_KEY = "GEMINI_API_KEY"
-LOGGER_ID = -1001234567890
+API_ID = 33745438
+API_HASH = "142eb5aab37976e2d39475b07e8e3212"
+BOT_TOKEN = ""
+SESSION_STRING = ""
+GEMINI_API_KEY = ""
+LOGGER_ID = -1003009782265
 
 VAD_THRESHOLD = 700
 MAX_BUFFER_FRAMES = 250
