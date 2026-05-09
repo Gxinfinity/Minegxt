@@ -36,58 +36,133 @@ from pytgcalls.types.stream.legacy.audio_piped import AudioPiped
 from pytgcalls.types.stream.stream_audio_ended import StreamAudioEnded
 from pytgcalls.types.raw.audio_stream import AudioStream as AudioFrame
 # =========================================
+# =========================================
 # 1. ULTIMATE CONFIG & GLOBALS
 # =========================================
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
+
 logger = logging.getLogger("RuhiSupreme")
 
 API_ID = 33745438
 API_HASH = "142eb5aab37976e2d39475b07e8e3212"
+
 BOT_TOKEN = ""
 SESSION_STRING = ""
 GEMINI_API_KEY = ""
+
 LOGGER_ID = -1003009782265
 
 VAD_THRESHOLD = 700
 MAX_BUFFER_FRAMES = 250
 MAX_PLAYLIST_SIZE = 15
 MAX_QUEUE_LIMIT = 50
-WAKE_WORDS = ["ruhi", "roohi"]
+
+WAKE_WORDS = [
+    "ruhi",
+    "roohi"
+]
+
 VOICE = "hi-IN-SwaraNeural"
 
-#AI Models
+# =========================================
+# AI MODELS
+# =========================================
 
-print("🚀 Loading Ruhi Supreme 5.6: Bulletproof Final Build...")
-whisper_model = WhisperModel("tiny", device="cpu", compute_type="int8")
-genai.configure(api_key=GEMINI_API_KEY)
-ai_model = genai.GenerativeModel("gemini-1.5-flash")
+print(
+    "🚀 Loading Ruhi Supreme 5.6: Bulletproof Final Build..."
+)
 
-bot = Client("RuhiBot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
-assistant = Client("RuhiAssistant", api_id=API_ID, api_hash=API_HASH, session_string=SESSION_STRING)
+whisper_model = WhisperModel(
+    "tiny",
+    device="cpu",
+    compute_type="int8"
+)
+
+genai.configure(
+    api_key=GEMINI_API_KEY
+)
+
+ai_model = genai.GenerativeModel(
+    "gemini-1.5-flash"
+)
+
+# =========================================
+# CLIENTS
+# =========================================
+
+bot = Client(
+    "RuhiBot",
+    api_id=API_ID,
+    api_hash=API_HASH,
+    bot_token=BOT_TOKEN
+)
+
+assistant = Client(
+    "RuhiAssistant",
+    api_id=API_ID,
+    api_hash=API_HASH,
+    session_string=SESSION_STRING
+)
+
 call_py = PyTgCalls(assistant)
 
-# States (Indestructible)
+# =========================================
+# STATES (STABLE)
+# =========================================
 
 QUEUE = defaultdict(list)
-ACTIVE_CALLS = set()
-AUDIO_BUFFER = defaultdict(list)
-CHAT_LOCKS = defaultdict(Lock)
-TTS_LOCK = defaultdict(Lock)
-VOICE_LOCK = defaultdict(Lock)
-CPU_SHIELD = Semaphore(3)
-IS_PROCESSING = defaultdict(bool)
-TTS_PLAYING = defaultdict(bool)
-SILENCE_COUNT = defaultdict(int)
-VOLUME = defaultdict(lambda: 100)
-PLAY_START_TIME = defaultdict(float)
-GAME_STATE = {}
-QUIZ_DATA = {}
-CHAT_MEMORY = defaultdict(lambda: deque(maxlen=5))
-AI_COOLDOWN = defaultdict(lambda: 0)
-CB_COOLDOWN = defaultdict(lambda: 0)
-PLAY_COOLDOWN = defaultdict(lambda: 0)
 
+ACTIVE_CALLS = set()
+
+AUDIO_BUFFER = defaultdict(list)
+
+CHAT_LOCKS = defaultdict(Lock)
+
+TTS_LOCK = defaultdict(Lock)
+
+VOICE_LOCK = defaultdict(Lock)
+
+CPU_SHIELD = Semaphore(2)
+
+ACTIVE_CALLS_LOCK = Lock()
+
+IS_PROCESSING = defaultdict(bool)
+
+TTS_PLAYING = defaultdict(bool)
+
+SILENCE_COUNT = defaultdict(int)
+
+VOLUME = defaultdict(
+    lambda: 100
+)
+
+PLAY_START_TIME = defaultdict(float)
+
+GAME_STATE = defaultdict(
+    lambda: [""] * 9
+)
+
+QUIZ_DATA = defaultdict(str)
+
+CHAT_MEMORY = defaultdict(
+    lambda: deque(maxlen=5)
+)
+
+AI_COOLDOWN = defaultdict(
+    lambda: 0
+)
+
+CB_COOLDOWN = defaultdict(
+    lambda: 0
+)
+
+PLAY_COOLDOWN = defaultdict(
+    lambda: 0
+)
 #=========================================
 
 # =========================================
