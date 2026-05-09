@@ -29,6 +29,10 @@
       "description": "Optional Gemini API key for AI chat and generated quiz questions",
       "required": false
     },
+    "OPENWEATHER_API_KEY": {
+      "description": "Optional OpenWeather API key for weather voice/text replies",
+      "required": false
+    },
     "RUHI_DEFAULT_VOICE": {
       "description": "Default Edge TTS voice",
       "value": "hi-IN-SwaraNeural",

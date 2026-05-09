@@ -1,6 +1,6 @@
 # Ruhi / Roohi Telegram Voice Assistant
 
-Ruhi is a Telegram bot + assistant account setup for group video chat music, voice commands, AI replies, web search, quiz, and games. It is designed to feel Alexa-like in Telegram groups: say `Ruhi play ...`, `Ruhi pause`, `Ruhi volume 80`, or `Ruhi search ...` while the bot is in VC.
+Ruhi is a Telegram bot + assistant account setup for group video chat music, voice commands, AI replies, web search, quiz, and games. It is designed to feel like a premium natural Ruhi/Roohi assistant in Telegram groups: say `Ruhi play ...`, `Ruhi pause`, `Ruhi volume 80`, or `Ruhi search ...` while the bot is in VC.
 
 ## Main features
 
@@ -118,3 +118,48 @@ heroku logs --tail
 - `Ruhi forward 30`
 - `Ruhi search best AI news today`
 - `Ruhi language english`
+
+## Production architecture
+
+RUHI SUPREME AI is now split into focused async services:
+
+- `core/` — config, logging, application bootstrap, typed models
+- `database/` — SQLite queue and memory persistence
+- `music/` — yt-dlp resolving, queue, VC playback, seek, pause/resume, recovery state
+- `voice/` — faster-whisper transcription, VAD helpers, Edge TTS VC speech interruption
+- `ai/` — wake-word intent routing and Ruhi/Roohi personality control
+- `services/` — Gemini AI, weather, search, TTS
+- `modules/` — Pyrogram text/voice handlers and group UX
+- `utils/` — async helpers
+
+## Root cause analysis of the previous unstable build
+
+1. Legacy PyTgCalls imports were mixed with newer `py-tgcalls` expectations, which caused raw VC listener messages such as `Raw VC listener unsupported` on modern installs.
+2. Secrets were embedded or had unsafe defaults, so Heroku/VPS configuration could silently start with invalid credentials.
+3. Voice, music, AI, database, and Telegram handlers were all coupled in one large file, making locks, cleanup, and reconnect logic fragile.
+4. Blocking work such as `ffmpeg`, Whisper, and `yt-dlp` was not consistently isolated from the event loop.
+5. Queue state and voice/TTS interruptions did not have a single owner, which made music resume and stream switching race-prone.
+6. Requirements were incomplete for production VPS/Heroku deployment.
+
+## Voice chat implementation notes
+
+The project targets the current `py-tgcalls` package (`2.2.12+`) which is the maintained PyTgCalls distribution and is backed by NTgCalls. PyPI documents `py-tgcalls` as an async Telegram calls client, requiring Python 3.10+ and supporting Pyrogram, while the underlying project is powered by NTgCalls. The historical raw API is documented around `GroupCallRaw` / recorded PCM callbacks; Ruhi keeps all raw PCM processing isolated in `voice/assistant.py` so newer callback/event adapters can feed `VoiceAssistant.ingest_raw_frame(...)` without touching command/music logic.
+
+## Weather setup
+
+Weather works when this optional key is configured:
+
+```bash
+OPENWEATHER_API_KEY=your_openweather_key
+```
+
+Without it, Ruhi replies naturally and tells you the key is missing instead of crashing.
+
+## VPS optimization tips
+
+- Use Python 3.11+ and Linux for `uvloop` and PyTgCalls/NTgCalls wheels.
+- Install `ffmpeg` system-wide and keep `yt-dlp` updated.
+- Use a systemd service with `Restart=always` and monitor logs with `journalctl -u ruhi -f`.
+- Keep `faster-whisper` on `tiny`/CPU for low-memory VPS plans; upgrade to GPU or larger models only if RAM allows.
+- Put temp files on SSD-backed storage and clean old `tmp/` files during deploys.
+- Use one worker dyno/process per assistant session to avoid Telegram session conflicts.
