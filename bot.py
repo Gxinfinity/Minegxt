@@ -955,6 +955,94 @@ else:
 #=========================================
 # VOICE MESSAGE AI + VC TALK SYSTEM
 #=========================================
+# =========================================
+# 6.5 RAW VOICE PROCESSOR (AI VC TALK)
+# =========================================
+
+async def process_voice(chat_id, audio_data, user_id):
+    if IS_PROCESSING[chat_id]:
+        return
+    
+    IS_PROCESSING[chat_id] = True
+    raw_file = f"raw_{uuid.uuid4().hex}.raw"
+    wav_file = f"v_{uuid.uuid4().hex}.wav"
+
+    try:
+        with open(raw_file, "wb") as f:
+            f.write(audio_data)
+
+        # Raw to Wav conversion
+        os.system(f"ffmpeg -f s16le -ar 48000 -ac 1 -i {raw_file} {wav_file} -y -loglevel quiet")
+
+        # Transcription
+        segments, _ = await asyncio.to_thread(whisper_model.transcribe, wav_file, language="hi")
+        text = "".join([s.text for s in segments]).strip().lower()
+
+        if not text or len(text) < 2:
+            return
+
+        if not any(w in text for w in WAKE_WORDS):
+            return
+
+        logger.info(f"VC Speech: {text}")
+        
+        clean_query = text
+        for w in WAKE_WORDS:
+            clean_query = clean_query.replace(w, "").strip()
+
+        # Music Control via Voice
+        if clean_query.startswith(("play", "baja", "paly")):
+            song_name = clean_query.replace("play", "").replace("baja", "").strip()
+            if song_name:
+                asyncio.create_task(handle_play(chat_id, song_name))
+                return
+
+        if "stop" in clean_query or "chup" in clean_query:
+            QUEUE[chat_id].clear()
+            with suppress(Exception):
+                await call_py.leave_group_call(chat_id)
+            ACTIVE_CALLS.discard(chat_id)
+            return
+
+        # Gemini AI Response
+        try:
+            response = await asyncio.to_thread(
+                ai_model.generate_content, 
+                f"You are Ruhi, a friendly AI music bot. Reply in short Hinglish: {clean_query}"
+            )
+            ans = response.text.strip()[:300]
+        except:
+            ans = "Ji, boliye?"
+
+        # TTS and VC Audio Change
+        async with TTS_LOCK[chat_id]:
+            TTS_PLAYING[chat_id] = True
+            tts_path = f"tts_{uuid.uuid4().hex}.mp3"
+            
+            seek_pos = int(time.time() - PLAY_START_TIME[chat_id]) + 2 if chat_id in PLAY_START_TIME else 0
+
+            await edge_tts.Communicate(ans, VOICE).save(tts_path)
+            await call_py.change_stream(chat_id, AudioPiped(tts_path))
+            
+            await asyncio.sleep(max(3, len(ans.split()) // 3))
+            
+            # Resume Music
+            if QUEUE[chat_id]:
+                asyncio.create_task(play_next(chat_id, seek=seek_pos))
+            else:
+                await call_py.change_stream(chat_id, AudioPiped("https://raw.githubusercontent.com/TheHamkerCat/WilliamButcherBot/master/cache/empty.aac"))
+
+    except Exception as e:
+        logger.error(f"process_voice error: {e}")
+    finally:
+        IS_PROCESSING[chat_id] = False
+        for f in [raw_file, wav_file]:
+            if os.path.exists(f):
+                os.remove(f)
+
+# =========================================
+# Yahan se Section 7 (VOICE MESSAGE AI) shuru hoga...
+# =========================================
 
 @bot.on_message(filters.voice)
 async def voice_message_ai(_, m: Message):
