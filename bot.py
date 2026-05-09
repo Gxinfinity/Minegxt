@@ -1142,7 +1142,8 @@ async def dispatcher(_, m: Message):
 #=========================================
 
 #=========================================
-#8. CALLBACKS & WATCHDOG
+#=========================================
+#8. CALLBACKS & WATCHDOG (FINAL FIXED)
 #=========================================
 
 @bot.on_callback_query(
@@ -1150,104 +1151,120 @@ async def dispatcher(_, m: Message):
 )
 async def cb_router(_, cb: CallbackQuery):
 
-    if not cb.message:
-        return
+    try:
 
-    chat_id = cb.message.chat.id
-    now = time.time()
+        if not cb.message:
+            return
 
-    # Cooldown
-    if now - CB_COOLDOWN[chat_id] < 1:
+        chat_id = cb.message.chat.id
+        now = time.time()
 
-        return await cb.answer(
-            "Sabar! ⏳",
-            show_alert=False
-        )
+        # Cooldown
+        if now - CB_COOLDOWN[chat_id] < 1:
 
-    CB_COOLDOWN[chat_id] = now
-
-    # RESET GAME
-    if cb.data == "ttt_reset":
-
-        GAME_STATE[chat_id] = [""] * 9
-
-        return await cb.edit_message_text(
-            "🎮 Reset!",
-            reply_markup=get_ttt_kb(chat_id)
-        )
-
-    # QUIZ CALLBACK
-    if cb.data.startswith("qz_"):
-
-        answer = cb.data.split("_")[1]
-
-        if answer == QUIZ_DATA.get(chat_id):
-
-            await update_score(
-                cb.from_user.id
+            return await cb.answer(
+                "Sabar! ⏳",
+                show_alert=False
             )
 
-            await cb.edit_message_text(
-                "✅ Correct Answer!"
-            )
+        CB_COOLDOWN[chat_id] = now
 
-        else:
+        # RESET GAME
+        if cb.data == "ttt_reset":
 
-            await cb.answer(
-                "❌ Galat!",
-                show_alert=True
-            )
+            GAME_STATE[chat_id] = [""] * 9
 
-    # TIC TAC TOE CALLBACK
-    elif cb.data.startswith("ttt_"):
+            with suppress(Exception):
 
-        idx = int(
-            cb.data.split("_")[1]
-        )
-
-        if not GAME_STATE[chat_id][idx]:
-
-            # User Move
-            GAME_STATE[chat_id][idx] = "❌"
-
-            result = check_ttt_winner(
-                GAME_STATE[chat_id]
-            )
-
-            # Bot Move
-            if not result:
-
-                bot_idx = smart_ttt_move(
-                    GAME_STATE[chat_id]
+                return await cb.edit_message_text(
+                    "🎮 Reset!",
+                    reply_markup=get_ttt_kb(chat_id)
                 )
 
-                if bot_idx is not None:
+        # QUIZ CALLBACK
+        if cb.data.startswith("qz_"):
 
-                    GAME_STATE[chat_id][bot_idx] = "⭕"
+            answer = cb.data.split("_")[1]
+
+            if answer == QUIZ_DATA.get(chat_id):
+
+                await update_score(
+                    cb.from_user.id
+                )
+
+                with suppress(Exception):
+
+                    await cb.edit_message_text(
+                        "✅ Correct Answer!"
+                    )
+
+            else:
+
+                await cb.answer(
+                    "❌ Galat!",
+                    show_alert=True
+                )
+
+        # TIC TAC TOE CALLBACK
+        elif cb.data.startswith("ttt_"):
+
+            idx = int(
+                cb.data.split("_")[1]
+            )
+
+            if not GAME_STATE[chat_id][idx]:
+
+                # User Move
+                GAME_STATE[chat_id][idx] = "❌"
 
                 result = check_ttt_winner(
                     GAME_STATE[chat_id]
                 )
 
-            # End Game
-            if result:
+                # Bot Move
+                if not result:
 
-                await cb.edit_message_text(
-                    f"🏁 Winner: {result}",
-                    reply_markup=get_ttt_kb(chat_id)
-                )
+                    bot_idx = smart_ttt_move(
+                        GAME_STATE[chat_id]
+                    )
 
-                GAME_STATE.pop(
-                    chat_id,
-                    None
-                )
+                    if bot_idx is not None:
 
-            else:
+                        GAME_STATE[chat_id][bot_idx] = "⭕"
 
-                await cb.edit_message_text(
-                    "🎮 Game On:",
-                    reply_markup=get_ttt_kb(chat_id)
-                )
+                    result = check_ttt_winner(
+                        GAME_STATE[chat_id]
+                    )
+
+                # End Game
+                if result:
+
+                    with suppress(Exception):
+
+                        await cb.edit_message_text(
+                            f"🏁 Winner: {result}",
+                            reply_markup=get_ttt_kb(chat_id)
+                        )
+
+                    GAME_STATE.pop(
+                        chat_id,
+                        None
+                    )
+
+                else:
+
+                    with suppress(Exception):
+
+                        await cb.edit_message_text(
+                            "🎮 Game On:",
+                            reply_markup=get_ttt_kb(chat_id)
+                        )
+
+    except Exception as e:
+
+        logger.error(
+            f"Callback Error: {e}"
+        )
 
 
 #=========================================
@@ -1258,9 +1275,9 @@ async def watchdog():
 
     while True:
 
-        await asyncio.sleep(60)
-
         try:
+
+            await asyncio.sleep(60)
 
             # Assistant Reconnect
             if not getattr(
@@ -1273,6 +1290,10 @@ async def watchdog():
 
                     await assistant.connect()
 
+                    logger.info(
+                        "Assistant Reconnected"
+                    )
+
                 except Exception as e:
 
                     logger.error(
@@ -1282,14 +1303,14 @@ async def watchdog():
             # Active Calls Check
             for chat_id in list(ACTIVE_CALLS):
 
-                with suppress(Exception):
+                try:
 
                     call = await call_py.get_call(
                         chat_id
                     )
 
                     status = str(
-                        call.status
+                        getattr(call, "status", "")
                     ).lower()
 
                     if (
@@ -1301,11 +1322,19 @@ async def watchdog():
                             chat_id
                         )
 
+                except Exception:
+
+                    ACTIVE_CALLS.discard(
+                        chat_id
+                    )
+
         except Exception as e:
 
             logger.error(
                 f"Watchdog Error: {e}"
             )
+
+            await asyncio.sleep(5)
 #=========================================
 
 #=========================================
