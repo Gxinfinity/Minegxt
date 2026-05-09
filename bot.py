@@ -1210,7 +1210,132 @@ async def voice_message_ai(_, m: Message):
         await m.reply(
             "❌ Voice processing failed."
         )
-#=========================================
+# =========================================
+# 7.5 TEXT COMMAND DISPATCHER (FIXED & SYNCED)
+# =========================================
+
+@bot.on_message(filters.command(["start", "play", "volume", "quiz", "truth", "dare", "help", "skip", "stop", "join", "queue", "ttt", "pause", "resume"]) & filters.incoming)
+async def dispatcher(_, m: Message):
+    if not m.from_user: 
+        return
+    
+    chat_id = m.chat.id
+    cmd = m.command[0].lower()
+    user_id = m.from_user.id
+
+    # --- ADMIN CHECK (Only for Groups) ---
+    admin_cmds = ["play", "skip", "stop", "join", "volume", "pause", "resume"]
+    if cmd in admin_cmds and m.chat.type != m.chat.type.PRIVATE:
+        try:
+            member = await bot.get_chat_member(chat_id, user_id)
+            if member.status not in [ChatMemberStatus.OWNER, ChatMemberStatus.ADMINISTRATOR]:
+                return await m.reply("❌ Sirf Admins ye command chala sakte hain.")
+        except Exception as e:
+            logger.error(f"Admin Check Error: {e}")
+
+    # --- COMMANDS LOGIC ---
+    
+    if cmd == "start":
+        await m.reply("✨ **Ruhi Supreme 5.6 Online**\nBulletproof Build! 🚀\n\nCommands dekhne ke liye /help likho.")
+
+    elif cmd == "help":
+        await m.reply("📚 **Ruhi Supreme Commands:**\n\n🎵 **Music:** /play, /skip, /stop, /pause, /resume, /queue, /volume, /join\n🎮 **Games:** /ttt, /quiz, /truth, /dare")
+
+    elif cmd == "play":
+        query = " ".join(m.command[1:]).strip()
+        if not query:
+            return await m.reply("🎵 Gaane ka naam ya link toh do bhai.")
+        
+        # Cooldown check
+        now = time.time()
+        if now - PLAY_COOLDOWN[chat_id] < 3:
+            return await m.reply("⏳ Sabar karo, 3 second ruko.")
+        
+        PLAY_COOLDOWN[chat_id] = now
+        status = await m.reply("🔍 Searching...")
+        await handle_play(chat_id, query, status)
+
+    elif cmd == "stop":
+        QUEUE[chat_id].clear()
+        await clear_queue_db(chat_id)
+        with suppress(Exception):
+            await call_py.leave_group_call(chat_id)
+        ACTIVE_CALLS.discard(chat_id)
+        await m.reply("⏹ Music band aur Queue saaf kar di hai.")
+
+    elif cmd == "skip":
+        if not QUEUE[chat_id]:
+            return await m.reply("📭 Queue mein kuch hai hi nahi skip karne ko.")
+        
+        old = QUEUE[chat_id].pop(0)
+        await remove_song_db(chat_id, old["title"])
+        await asyncio.sleep(1)
+        asyncio.create_task(play_next(chat_id))
+        await m.reply(f"⏭ Skipped: **{old['title']}**")
+
+    elif cmd == "queue":
+        if not QUEUE[chat_id]:
+            return await m.reply("📭 Queue khali hai.")
+        
+        text = "🎶 **Current Queue:**\n"
+        for i, song in enumerate(QUEUE[chat_id][:10], start=1):
+            text += f"{i}. {song['title']}\n"
+        await m.reply(text)
+
+    elif cmd == "join":
+        if chat_id in ACTIVE_CALLS:
+            return await m.reply("🎙 Main pehle se VC mein hu.")
+        try:
+            await call_py.join_group_call(chat_id, AudioPiped("https://raw.githubusercontent.com/TheHamkerCat/WilliamButcherBot/master/cache/empty.aac"))
+            ACTIVE_CALLS.add(chat_id)
+            await m.reply("🎙 VC Join kar liya hai!")
+        except NoActiveGroupCall:
+            await m.reply("❌ Pehle Group mein Video Chat start karo.")
+        except Exception as e:
+            logger.error(f"Join Fail: {e}")
+
+    elif cmd == "volume":
+        if len(m.command) < 2:
+            return await m.reply("Usage: /volume 0-200")
+        try:
+            vol = int(m.command[1])
+            VOLUME[chat_id] = max(0, min(200, vol))
+            await m.reply(f"🔊 Volume set to: {VOLUME[chat_id]}%")
+        except:
+            await m.reply("❌ Sahi number daalo (0-200).")
+
+    elif cmd == "pause":
+        with suppress(Exception):
+            await call_py.pause_stream(chat_id)
+        await m.reply("⏸ Paused.")
+
+    elif cmd == "resume":
+        with suppress(Exception):
+            await call_py.resume_stream(chat_id)
+        await m.reply("▶️ Resumed.")
+
+    elif cmd == "quiz":
+        try:
+            prompt = "Generate 1 difficult NEET MCQ. Format: Question|OptA|OptB|OptC|OptD|CorrectLetter"
+            res = (await asyncio.to_thread(ai_model.generate_content, prompt)).text.split("|")
+            if len(res) >= 6:
+                QUIZ_DATA[chat_id] = res[5].strip().upper()
+                buttons = [[InlineKeyboardButton(res[i+1].strip(), callback_data=f"qz_{chr(65+i)}")] for i in range(4)]
+                await m.reply(f"📖 **Quiz:** {res[0]}", reply_markup=InlineKeyboardMarkup(buttons))
+        except Exception as e:
+            logger.error(f"Quiz Error: {e}")
+            await m.reply("❌ Quiz nahi ban paya, firse try karo.")
+
+    elif cmd == "ttt":
+        GAME_STATE[chat_id] = [""] * 9
+        await m.reply("🎮 **Tic-Tac-Toe Shuru!**", reply_markup=get_ttt_kb(chat_id))
+
+    elif cmd == "truth":
+        await m.reply(f"🤔 **Truth:** {random.choice(['Apna sabse bada secret batao?', 'Kisi par crush hai?', 'Akhri baar jhoot kab bola?', 'Zindagi ka sabse embarrassing moment?'])}")
+
+    elif cmd == "dare":
+        await m.reply(f"🔥 **Dare:** {random.choice(['Ek gaana gaao aur voice note bhejo.', 'Apne crush ko message karo.', '10 pushups maaro video mein (ya sach bolo).', 'Apni sabse purani photo dikhao.'])}")
+
 
 #=========================================
 #8. CALLBACKS & WATCHDOG (FINAL FIXED)
