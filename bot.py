@@ -26,7 +26,7 @@ from pyrogram.types import (
     InlineKeyboardButton,
     CallbackQuery
 )
-from pyrogram.enums import ChatMemberStatus
+from pyrogram.enums import ChatMemberStatus , ChatType
 from pyrogram.errors import FloodWait
 
 from pytgcalls import PyTgCalls
@@ -1223,15 +1223,16 @@ async def dispatcher(_, m: Message):
     cmd = m.command[0].lower()
     user_id = m.from_user.id
 
-    # --- ADMIN CHECK (Only for Groups) ---
+        # --- ADMIN CHECK (Only for Groups) ---
     admin_cmds = ["play", "skip", "stop", "join", "volume", "pause", "resume"]
-    if cmd in admin_cmds and m.chat.type != m.chat.type.PRIVATE:
+    if cmd in admin_cmds and m.chat.type != ChatType.PRIVATE: # <--- Ye line sahi ki hai
         try:
             member = await bot.get_chat_member(chat_id, user_id)
             if member.status not in [ChatMemberStatus.OWNER, ChatMemberStatus.ADMINISTRATOR]:
                 return await m.reply("❌ Sirf Admins ye command chala sakte hain.")
         except Exception as e:
             logger.error(f"Admin Check Error: {e}")
+
 
     # --- COMMANDS LOGIC ---
     
