@@ -1,25 +1,40 @@
-import os, re, uuid, random, asyncio, logging, aiosqlite, time, json, numpy as np
+import os
+import re
+import uuid
+import random
+import asyncio
+import logging
+import aiosqlite
+import time
+import json
+import numpy as np
+
 from collections import defaultdict, deque
 from asyncio import Lock, Semaphore
 from contextlib import suppress
 
 import edge_tts
 import google.generativeai as genai
+
 from faster_whisper import WhisperModel
+from yt_dlp import YoutubeDL
 
 from pyrogram import Client, filters, idle
-from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
+from pyrogram.types import (
+    Message,
+    InlineKeyboardMarkup,
+    InlineKeyboardButton,
+    CallbackQuery
+)
 from pyrogram.enums import ChatMemberStatus
 from pyrogram.errors import FloodWait
 
 from pytgcalls import PyTgCalls
-from pytgcalls.types.input_stream import AudioPiped
-from pytgcalls.types.stream import StreamAudioEnded
-from pytgcalls.types.raw import AudioFrame
 from pytgcalls.exceptions import NoActiveGroupCall
 
-from yt_dlp import YoutubeDL
-
+from pytgcalls.types.stream.legacy.audio_piped import AudioPiped
+from pytgcalls.types.stream.stream_audio_ended import StreamAudioEnded
+from pytgcalls.types.raw.audio_stream import AudioStream as AudioFrame
 # =========================================
 # 1. ULTIMATE CONFIG & GLOBALS
 # =========================================
