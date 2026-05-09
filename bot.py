@@ -952,341 +952,266 @@ else:
 #=========================================
 
 #=========================================
-#7. DISPATCHER & COMMANDS
+#=========================================
+# VOICE MESSAGE AI + VC TALK SYSTEM
 #=========================================
 
-@bot.on_message(
-    filters.command([
-        "start",
-        "play",
-        "volume",
-        "quiz",
-        "truth",
-        "dare",
-        "help",
-        "skip",
-        "stop",
-        "join",
-        "queue",
-        "ttt",
-        "pause",
-        "resume"
-    ])
-)
-async def dispatcher(_, m: Message):
+@bot.on_message(filters.voice)
+async def voice_message_ai(_, m: Message):
+
+    if not m.voice:
+        return
 
     if not m.from_user:
         return
 
     chat_id = m.chat.id
-    cmd = m.command[0].lower()
+    user_id = m.from_user.id
 
-    admin_cmds = [
-        "play",
-        "skip",
-        "stop",
-        "join",
-        "volume",
-        "pause",
-        "resume"
-    ]
+    try:
 
-    # Admin Check
-    if cmd in admin_cmds:
-
-        try:
-
-            member = await bot.get_chat_member(
-                chat_id,
-                m.from_user.id
-            )
-
-            if member.status not in [
-                ChatMemberStatus.OWNER,
-                ChatMemberStatus.ADMINISTRATOR
-            ]:
-
-                return await m.reply(
-                    "❌ Admin Only."
-                )
-
-        except Exception as e:
-
-            logger.error(
-                f"Admin Check Error: {e}"
-            )
-
-            return await m.reply(
-                "❌ Admin check failed."
-            )
-
-    # HELP
-    if cmd == "help":
-
-        await m.reply(
-            "📚 **Ruhi Commands:**\n"
-            "/play /skip /stop /queue\n"
-            "/volume /join /quiz /ttt\n"
-            "/truth /dare /pause /resume"
+        status = await m.reply(
+            "🎤 Listening..."
         )
 
-    # QUEUE
-    elif cmd == "queue":
-
-        if not QUEUE[chat_id]:
-
-            return await m.reply(
-                "📭 Queue empty."
-            )
-
-        text = "🎶 **Queue:**\n"
-
-        for i, song in enumerate(
-            QUEUE[chat_id][:10],
-            start=1
-        ):
-
-            text += f"{i}. {song['title']}\n"
-
-        await m.reply(text)
-
-    # TRUTH
-    elif cmd == "truth":
-
-        await m.reply(
-            random.choice([
-                "🤔 Biggest secret?",
-                "🤔 Crush?",
-                "🤔 Last lie?"
-            ])
+        voice_file = await m.download(
+            file_name=f"v_{uuid.uuid4().hex}.ogg"
         )
 
-    # DARE
-    elif cmd == "dare":
-
-        await m.reply(
-            random.choice([
-                "🔥 Gaana gao.",
-                "🔥 10 pushups.",
-                "🔥 Voice note bhejo."
-            ])
+        # Speech To Text
+        segs, _ = await asyncio.to_thread(
+            whisper_model.transcribe,
+            voice_file,
+            language="hi"
         )
 
-    # START
-    elif cmd == "start":
+        text = "".join(
+            [s.text for s in segs]
+        ).strip().lower()
 
-        await m.reply(
-            "✨ **Ruhi Supreme 5.6 Online**\n"
-            "Bulletproof Build! 🚀"
-        )
+        if not text:
 
-    # JOIN VC
-    elif cmd == "join":
+            with suppress(Exception):
+                os.remove(voice_file)
 
-        if chat_id in ACTIVE_CALLS:
-
-            return await m.reply(
-                "🎙 Already in VC."
+            return await status.edit(
+                "❌ Kuch samajh nahi aya."
             )
 
-        try:
+        clean = text.strip()
 
-            await call_py.join_group_call(
-                chat_id,
-                AudioPiped(
-                    "https://raw.githubusercontent.com/TheHamkerCat/WilliamButcherBot/master/cache/empty.aac"
-                )
-            )
+        # Wake Word Check
+        if not any(w in clean for w in WAKE_WORDS):
 
-            ACTIVE_CALLS.add(chat_id)
+            with suppress(Exception):
+                os.remove(voice_file)
 
-            await m.reply(
-                "🎙 Joined VC."
-            )
+            return
 
-        except NoActiveGroupCall:
+        for w in WAKE_WORDS:
 
-            await m.reply(
-                "❌ VC start karo pehle."
-            )
+            clean = clean.replace(
+                w,
+                ""
+            ).strip()
 
-        except Exception as e:
-
-            logger.error(f"Join Fail: {e}")
-
-    # PLAY
-    elif cmd == "play":
-
-        query = " ".join(
-            m.command[1:]
-        ).strip()
-
-        if not query:
-
-            return await m.reply(
-                "🎵 Song name do."
-            )
-
+        # Cooldown
         now = time.time()
 
-        if now - PLAY_COOLDOWN[chat_id] < 3:
+        if now - AI_COOLDOWN[user_id] < 3:
 
-            return await m.reply(
+            with suppress(Exception):
+                os.remove(voice_file)
+
+            return await status.edit(
                 "⏳ Wait..."
             )
 
-        PLAY_COOLDOWN[chat_id] = now
+        AI_COOLDOWN[user_id] = now
 
-        await handle_play(
-            chat_id,
-            query,
-            await m.reply("🔍 Searching...")
-        )
+        # PLAY SONG
+        if clean.startswith("play "):
 
-    # VOLUME
-    elif cmd == "volume":
+            with suppress(Exception):
+                os.remove(voice_file)
 
-        if len(m.command) < 2:
-
-            return await m.reply(
-                "Usage: /volume 0-200"
-            )
-
-        try:
-
-            vol = int(m.command[1])
-
-            VOLUME[chat_id] = max(
-                0,
-                min(200, vol)
-            )
-
-            await m.reply(
-                f"🔊 Vol: {VOLUME[chat_id]}%"
-            )
-
-        except Exception as e:
-
-            logger.error(
-                f"Volume Error: {e}"
-            )
-
-            return await m.reply(
-                "❌ Number do."
-            )
-
-    # PAUSE
-    elif cmd == "pause":
-
-        with suppress(Exception):
-
-            await call_py.pause_stream(chat_id)
-
-        await m.reply("⏸ Paused")
-
-    # RESUME
-    elif cmd == "resume":
-
-        with suppress(Exception):
-
-            await call_py.resume_stream(chat_id)
-
-        await m.reply("▶️ Resumed")
-
-    # QUIZ
-    elif cmd == "quiz":
-
-        try:
-
-            res = (
-                await asyncio.to_thread(
-                    ai_model.generate_content,
-                    "Generate 1 NEET MCQ. Question|A|B|C|D|CorrectLetter"
-                )
-            ).text.split("|")
-
-            if len(res) >= 6:
-
-                QUIZ_DATA[chat_id] = (
-                    res[5].strip().upper()
-                )
-
-                kb = [
-                    [
-                        InlineKeyboardButton(
-                            res[i + 1].strip(),
-                            callback_data=f"qz_{chr(65+i)}"
-                        )
-                    ]
-                    for i in range(4)
-                ]
-
-                await m.reply(
-                    f"📖 **Quiz:** {res[0]}",
-                    reply_markup=InlineKeyboardMarkup(kb)
-                )
-
-        except Exception as e:
-
-            logger.error(
-                f"Quiz Gen Fail: {e}"
-            )
-
-            await m.reply(
-                "❌ Quiz failed."
-            )
-
-    # TIC TAC TOE
-    elif cmd == "ttt":
-
-        GAME_STATE[chat_id] = [""] * 9
-
-        await m.reply(
-            "🎮 **TicTacToe!**",
-            reply_markup=get_ttt_kb(chat_id)
-        )
-
-    # SKIP
-    elif cmd == "skip":
-
-        if QUEUE[chat_id]:
-
-            old = QUEUE[chat_id].pop(0)
-
-            await remove_song_db(
+            return await handle_play(
                 chat_id,
-                old["title"]
+                clean.replace(
+                    "play",
+                    "",
+                    1
+                ).strip(),
+                status
             )
 
-            await asyncio.sleep(1)
+        # STOP MUSIC
+        if "stop" in clean:
 
-            await play_next(chat_id)
+            QUEUE[chat_id].clear()
 
-            await m.reply(
-                "⏭ Skipped"
-            )
+            await clear_queue_db(chat_id)
 
-    # STOP
-    elif cmd == "stop":
+            with suppress(Exception):
 
-        QUEUE[chat_id].clear()
+                await call_py.leave_group_call(
+                    chat_id
+                )
 
-        await clear_queue_db(chat_id)
-
-        with suppress(Exception):
-
-            await call_py.leave_group_call(
+            ACTIVE_CALLS.discard(
                 chat_id
             )
 
-        ACTIVE_CALLS.discard(chat_id)
+            with suppress(Exception):
+                os.remove(voice_file)
+
+            return await status.edit(
+                "⏹ Stopped"
+            )
+
+        # PAUSE MUSIC
+        if "pause" in clean:
+
+            with suppress(Exception):
+
+                await call_py.pause_stream(
+                    chat_id
+                )
+
+            with suppress(Exception):
+                os.remove(voice_file)
+
+            return await status.edit(
+                "⏸ Paused"
+            )
+
+        # RESUME MUSIC
+        if "resume" in clean:
+
+            with suppress(Exception):
+
+                await call_py.resume_stream(
+                    chat_id
+                )
+
+            with suppress(Exception):
+                os.remove(voice_file)
+
+            return await status.edit(
+                "▶️ Resumed"
+            )
+
+        # AI CHAT REPLY
+        try:
+
+            res = await asyncio.to_thread(
+                ai_model.generate_content,
+                f"Reply naturally in Hinglish: {clean}"
+            )
+
+            ans = (
+                res.text.strip()[:400]
+                if hasattr(res, "text")
+                else "Boliye 🙂"
+            )
+
+        except Exception as e:
+
+            logger.error(
+                f"Voice AI Error: {e}"
+            )
+
+            ans = "Network issue 😭"
+
+        await status.edit(
+            f"🧠 {ans}"
+        )
+
+        # MEMORY
+        CHAT_MEMORY[chat_id].append(
+            f"U:{clean[:120]} | R:{ans[:200]}"
+        )
+
+        asyncio.create_task(
+            save_chat_memory(chat_id)
+        )
+
+        # SPEAK IN VC
+        if chat_id in ACTIVE_CALLS:
+
+            seek_pos = (
+                int(
+                    time.time()
+                    - PLAY_START_TIME[chat_id]
+                ) + 2
+                if chat_id in PLAY_START_TIME
+                else 0
+            )
+
+            async with TTS_LOCK[chat_id]:
+
+                TTS_PLAYING[chat_id] = True
+
+                tts_file = (
+                    f"tts_{uuid.uuid4().hex}.mp3"
+                )
+
+                try:
+
+                    await edge_tts.Communicate(
+                        ans,
+                        VOICE
+                    ).save(tts_file)
+
+                    await call_py.change_stream(
+                        chat_id,
+                        AudioPiped(tts_file)
+                    )
+
+                    await asyncio.sleep(
+                        max(
+                            3,
+                            len(ans.split()) // 3
+                        )
+                    )
+
+                    # Resume Music
+                    if QUEUE.get(chat_id):
+
+                        await play_next(
+                            chat_id,
+                            seek=seek_pos
+                        )
+
+                except Exception as e:
+
+                    logger.error(
+                        f"VC Voice Reply Error: {e}"
+                    )
+
+                finally:
+
+                    TTS_PLAYING[chat_id] = False
+
+                    with suppress(Exception):
+
+                        os.remove(tts_file)
+
+        with suppress(Exception):
+
+            os.remove(voice_file)
+
+    except Exception as e:
+
+        logger.error(
+            f"Voice Message Handler Error: {e}"
+        )
 
         await m.reply(
-            "⏹ Stopped"
+            "❌ Voice processing failed."
         )
 #=========================================
 
-#=========================================
 #=========================================
 #8. CALLBACKS & WATCHDOG (FINAL FIXED)
 #=========================================
