@@ -851,288 +851,102 @@ async def on_end(_, update):
 
 #=========================================
 #=========================================
-#6. VOICE ENGINE (FINAL FIXED)
+#=========================================
+# RAW VC LISTENER (AUTO FUTURE SUPPORT)
 #=========================================
 
-async def process_voice(chat_id, raw_bytes, user_id):
+if hasattr(call_py, "on_raw_audio_received"):
 
-    async with CPU_SHIELD, VOICE_LOCK[chat_id]:
-
-        IS_PROCESSING[chat_id] = True
+    @call_py.on_raw_audio_received()
+    async def on_voice_frame(_, frame):
 
         try:
 
-            audio_int16 = np.frombuffer(
-                raw_bytes,
+            chat_id = frame.chat_id
+
+            if (
+                IS_PROCESSING[chat_id]
+                or TTS_LOCK[chat_id].locked()
+                or TTS_PLAYING[chat_id]
+            ):
+                return
+
+            if not getattr(frame, "data", None):
+                return
+
+            audio_np = np.frombuffer(
+                frame.data,
                 dtype=np.int16
             )
 
-            if len(audio_int16) < 1000:
+            if len(audio_np) == 0:
                 return
 
-            audio_float32 = np.interp(
-                np.linspace(
-                    0,
-                    len(audio_int16),
-                    int(len(audio_int16) * 16000 / 48000),
-                    endpoint=False
-                ),
-                np.arange(len(audio_int16)),
-                audio_int16
-            ).astype(np.float32) / 32768.0
-
-            segs, _ = await asyncio.to_thread(
-                whisper_model.transcribe,
-                audio_float32,
-                language="hi"
+            energy = np.sqrt(
+                np.mean(
+                    audio_np.astype(
+                        np.float32
+                    ) ** 2
+                )
             )
 
-            text = "".join(
-                [s.text for s in segs]
-            ).strip().lower()
+            # Voice Detected
+            if energy > VAD_THRESHOLD:
 
-            if len(text.split()) < 2 or len(text) < 5:
-                return
-
-            if not any(w in text for w in WAKE_WORDS):
-                return
-
-            clean = text
-
-            for w in WAKE_WORDS:
-
-                clean = clean.replace(
-                    w,
-                    ""
-                ).strip()
-
-            now = time.time()
-
-            if now - AI_COOLDOWN[user_id] < 5:
-                return
-
-            AI_COOLDOWN[user_id] = now
-
-            # Voice Play Command
-            if clean.startswith("play "):
-
-                return await handle_play(
-                    chat_id,
-                    clean.replace(
-                        "play",
-                        "",
-                        1
-                    ).strip()
+                AUDIO_BUFFER[chat_id].append(
+                    frame.data
                 )
 
-            # Voice Stop Command
-            if "stop" in clean:
+                SILENCE_COUNT[chat_id] = 0
 
-                QUEUE[chat_id].clear()
+                if (
+                    len(AUDIO_BUFFER[chat_id])
+                    > MAX_BUFFER_FRAMES
+                ):
 
-                await clear_queue_db(
-                    chat_id
+                    AUDIO_BUFFER[chat_id].pop(0)
+
+            else:
+
+                SILENCE_COUNT[chat_id] += 1
+
+            # Fast Speech Processing
+            if (
+                SILENCE_COUNT[chat_id] > 10
+                and len(AUDIO_BUFFER[chat_id]) > 20
+            ):
+
+                data = b"".join(
+                    AUDIO_BUFFER[chat_id]
                 )
 
-                with suppress(Exception):
+                AUDIO_BUFFER[chat_id].clear()
 
-                    await call_py.leave_group_call(
-                        chat_id
-                    )
+                SILENCE_COUNT[chat_id] = 0
 
-                ACTIVE_CALLS.discard(
-                    chat_id
-                )
-
-                return
-
-            # Resume Position
-            seek_pos = (
-                int(
-                    time.time()
-                    - PLAY_START_TIME[chat_id]
-                ) + 2
-                if chat_id in PLAY_START_TIME
-                else 0
-            )
-
-            # AI Reply
-            try:
-
-                res = await asyncio.to_thread(
-                    ai_model.generate_content,
-                    f"Reply naturally in Hinglish: {clean}"
-                )
-
-                ans = (
-                    res.text.strip()[:400]
-                    if hasattr(res, "text")
-                    else "Boliye 🙂"
-                )
-
-            except Exception as e:
-
-                logger.error(
-                    f"AI Gen Error: {e}"
-                )
-
-                ans = "Network issue 😭"
-
-            # Save Memory
-            CHAT_MEMORY[chat_id].append(
-                f"U:{clean[:120]} | R:{ans[:200]}"
-            )
-
-            asyncio.create_task(
-                save_chat_memory(chat_id)
-            )
-
-            # TTS Reply
-            async with TTS_LOCK[chat_id]:
-
-                TTS_PLAYING[chat_id] = True
-
-                file = (
-                    f"v_{uuid.uuid4().hex}.mp3"
-                )
-
-                try:
-
-                    await edge_tts.Communicate(
-                        ans,
-                        VOICE
-                    ).save(file)
-
-                    await call_py.change_stream(
+                asyncio.create_task(
+                    process_voice(
                         chat_id,
-                        AudioPiped(file)
-                    )
-
-                    await asyncio.sleep(
-                        max(
-                            3,
-                            len(ans.split()) // 3
+                        data,
+                        getattr(
+                            frame,
+                            "user_id",
+                            0
                         )
                     )
-
-                    if QUEUE.get(chat_id):
-
-                        await asyncio.sleep(1)
-
-                        await play_next(
-                            chat_id,
-                            seek=seek_pos
-                        )
-
-                except Exception as e:
-
-                    logger.error(
-                        f"TTS Error: {e}"
-                    )
-
-                finally:
-
-                    TTS_PLAYING[chat_id] = False
-
-                    with suppress(Exception):
-
-                        os.remove(file)
+                )
 
         except Exception as e:
 
             logger.error(
-                f"Voice Processor Error: {e}"
+                f"Voice Frame Error: {e}"
             )
 
-        finally:
+else:
 
-            IS_PROCESSING[chat_id] = False
-
-
-@call_py.on_raw_audio_received()
-async def on_voice_frame(_, frame):
-
-    try:
-
-        chat_id = frame.chat_id
-
-        if (
-            IS_PROCESSING[chat_id]
-            or TTS_LOCK[chat_id].locked()
-            or TTS_PLAYING[chat_id]
-        ):
-            return
-
-        if not getattr(frame, "data", None):
-            return
-
-        audio_np = np.frombuffer(
-            frame.data,
-            dtype=np.int16
-        )
-
-        if len(audio_np) == 0:
-            return
-
-        energy = np.sqrt(
-            np.mean(
-                audio_np.astype(
-                    np.float32
-                ) ** 2
-            )
-        )
-
-        # Voice Detected
-        if energy > VAD_THRESHOLD:
-
-            AUDIO_BUFFER[chat_id].append(
-                frame.data
-            )
-
-            SILENCE_COUNT[chat_id] = 0
-
-            if (
-                len(AUDIO_BUFFER[chat_id])
-                > MAX_BUFFER_FRAMES
-            ):
-
-                AUDIO_BUFFER[chat_id].pop(0)
-
-        else:
-
-            SILENCE_COUNT[chat_id] += 1
-
-        # Process Speech
-        if (
-            SILENCE_COUNT[chat_id] > 20
-            and len(AUDIO_BUFFER[chat_id]) > 40
-        ):
-
-            data = b"".join(
-                AUDIO_BUFFER[chat_id]
-            )
-
-            AUDIO_BUFFER[chat_id].clear()
-
-            SILENCE_COUNT[chat_id] = 0
-
-            asyncio.create_task(
-                process_voice(
-                    chat_id,
-                    data,
-                    getattr(
-                        frame,
-                        "user_id",
-                        0
-                    )
-                )
-            )
-
-    except Exception as e:
-
-        logger.error(
-            f"Voice Frame Error: {e}"
-        )
+    logger.warning(
+        "⚠ Raw VC listener unsupported in current PyTgCalls build."
+    )
 #=========================================
 
 #=========================================
