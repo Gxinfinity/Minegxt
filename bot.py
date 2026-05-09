@@ -316,7 +316,8 @@ def check_ttt_winner(board):
 #=========================================
 
 #=========================================
-#5. MUSIC ENGINE (FIX 1 Applied)
+#=========================================
+#5. MUSIC ENGINE (FINAL FIXED)
 #=========================================
 
 async def handle_play(chat_id, query, msg=None, seek=0, recovery=False):
@@ -361,11 +362,15 @@ async def handle_play(chat_id, query, msg=None, seek=0, recovery=False):
                     download=False
                 )
 
-                search = f"ytsearch1:{info.get('title', 'song')}"
+                search = (
+                    f"ytsearch1:{info.get('title', 'song')}"
+                )
 
         except Exception as e:
 
-            logger.error(f"Spotify Resolve Fail: {e}")
+            logger.error(
+                f"Spotify Resolve Fail: {e}"
+            )
 
     ydl_opts = {
         "quiet": True,
@@ -373,9 +378,9 @@ async def handle_play(chat_id, query, msg=None, seek=0, recovery=False):
         "noplaylist": not is_playlist
     }
 
-    with YoutubeDL(ydl_opts) as ydl:
+    try:
 
-        try:
+        with YoutubeDL(ydl_opts) as ydl:
 
             info = await asyncio.to_thread(
                 ydl.extract_info,
@@ -383,85 +388,95 @@ async def handle_play(chat_id, query, msg=None, seek=0, recovery=False):
                 download=False
             )
 
-            entries = info.get("entries") or [info]
+        entries = info.get("entries") or [info]
 
-            added = 0
+        added = 0
 
-            for entry in entries[:MAX_PLAYLIST_SIZE]:
+        for entry in entries[:MAX_PLAYLIST_SIZE]:
 
-                if not entry:
-                    continue
+            if not entry:
+                continue
 
-                data = {
-                    "title": entry.get(
-                        "title",
-                        "Unknown Song"
-                    ),
-                    "url": entry.get("url")
-                }
+            data = {
+                "title": entry.get(
+                    "title",
+                    "Unknown Song"
+                ),
+                "url": entry.get("url")
+            }
 
-                if not data["url"]:
-                    continue
+            if not data["url"]:
+                continue
 
-                if not recovery:
+            if not recovery:
 
-                    QUEUE[chat_id].append(data)
+                QUEUE[chat_id].append(data)
 
-                    async with aiosqlite.connect(
-                        "ruhi_supreme.db"
-                    ) as db:
+                async with aiosqlite.connect(
+                    "ruhi_supreme.db"
+                ) as db:
 
-                        await db.execute(
-                            "INSERT INTO p_queue VALUES (?, ?, ?)",
-                            (
-                                chat_id,
-                                data["title"],
-                                data["url"]
-                            )
-                        )
-
-                        await db.commit()
-
-                added += 1
-
-            # Join VC
-            if chat_id not in ACTIVE_CALLS:
-
-                try:
-
-                    await call_py.join_group_call(
-                        chat_id,
-                        AudioPiped(
-                            "https://raw.githubusercontent.com/TheHamkerCat/WilliamButcherBot/master/cache/empty.aac"
+                    await db.execute(
+                        "INSERT INTO p_queue VALUES (?, ?, ?)",
+                        (
+                            chat_id,
+                            data["title"],
+                            data["url"]
                         )
                     )
 
-                    ACTIVE_CALLS.add(chat_id)
+                    await db.commit()
 
-                except Exception as e:
+            added += 1
 
-                    logger.error(f"VC Join Error: {e}")
+        # Join VC
+        if chat_id not in ACTIVE_CALLS:
 
-            # Start Playback
-            if len(QUEUE[chat_id]) <= added or seek > 0:
+            try:
 
-                await asyncio.sleep(1)
-
-                asyncio.create_task(
-                    play_next(chat_id, seek=seek)
+                await call_py.join_group_call(
+                    chat_id,
+                    AudioPiped(
+                        "https://raw.githubusercontent.com/TheHamkerCat/WilliamButcherBot/master/cache/empty.aac"
+                    )
                 )
 
-            if msg:
-                await msg.edit(
-                    f"🎵 Added {added} track(s)."
+                ACTIVE_CALLS.add(chat_id)
+
+            except Exception as e:
+
+                logger.error(
+                    f"VC Join Error: {e}"
                 )
 
-        except Exception as e:
+                if msg:
+                    await msg.edit(
+                        "❌ VC Join Failed."
+                    )
 
-            logger.error(f"Play Fail: {e}")
+                return
 
-            if msg:
-                await msg.edit("❌ Load Failed.")
+        # Start Playback
+        if len(QUEUE[chat_id]) <= added or seek > 0:
+
+            await asyncio.sleep(2)
+
+            asyncio.create_task(
+                play_next(chat_id, seek=seek)
+            )
+
+        if msg:
+
+            await msg.edit(
+                f"🎵 Added {added} track(s)."
+            )
+
+    except Exception as e:
+
+        logger.error(f"Play Fail: {e}")
+
+        if msg:
+            await msg.edit("❌ Load Failed.")
 
 
 async def play_next(chat_id, seek=0):
@@ -471,7 +486,10 @@ async def play_next(chat_id, seek=0):
         if not QUEUE[chat_id]:
 
             with suppress(Exception):
-                await call_py.leave_group_call(chat_id)
+
+                await call_py.leave_group_call(
+                    chat_id
+                )
 
             ACTIVE_CALLS.discard(chat_id)
 
@@ -481,22 +499,9 @@ async def play_next(chat_id, seek=0):
 
         try:
 
-            ffmpeg_params = (
-                "-reconnect 1 "
-                "-reconnect_streamed 1 "
-                "-reconnect_delay_max 5 "
-                f"-vn -filter:a volume={VOLUME[chat_id] / 100}"
-            )
-
-            if seek > 0:
-                ffmpeg_params += f" -ss {seek}"
-
             await call_py.change_stream(
                 chat_id,
-                AudioPiped(
-                    song["url"],
-                    ffmpeg_parameters=ffmpeg_params
-                )
+                AudioPiped(song["url"])
             )
 
             PLAY_START_TIME[chat_id] = (
@@ -507,36 +512,61 @@ async def play_next(chat_id, seek=0):
 
         except Exception as e:
 
-            logger.error(f"Stream Fail: {e}")
-
-            if QUEUE[chat_id]:
-                QUEUE[chat_id].pop(0)
-
-            await asyncio.sleep(1)
-
-            asyncio.create_task(
-                play_next(chat_id)
+            logger.error(
+                f"Stream Fail: {e}"
             )
 
+            if QUEUE[chat_id]:
 
-@call_py.on_stream_end
-async def on_end(_, update: StreamAudioEnded):
+                QUEUE[chat_id].pop(0)
 
-    chat_id = update.chat_id
+            await asyncio.sleep(3)
 
-    if QUEUE[chat_id]:
+            if QUEUE[chat_id]:
 
-        old = QUEUE[chat_id].pop(0)
+                asyncio.create_task(
+                    play_next(chat_id)
+                )
 
-        await remove_song_db(
-            chat_id,
-            old["title"]
-        )
 
-        await asyncio.sleep(1)
+@call_py.on_stream_end()
+async def on_end(_, update):
 
-        asyncio.create_task(
-            play_next(chat_id)
+    try:
+
+        chat_id = update.chat_id
+
+        if QUEUE[chat_id]:
+
+            old = QUEUE[chat_id].pop(0)
+
+            await remove_song_db(
+                chat_id,
+                old["title"]
+            )
+
+            await asyncio.sleep(2)
+
+            if QUEUE[chat_id]:
+
+                asyncio.create_task(
+                    play_next(chat_id)
+                )
+
+            else:
+
+                with suppress(Exception):
+
+                    await call_py.leave_group_call(
+                        chat_id
+                    )
+
+                ACTIVE_CALLS.discard(chat_id)
+
+    except Exception as e:
+
+        logger.error(
+            f"StreamEnd Error: {e}"
         )
 
 #=========================================
