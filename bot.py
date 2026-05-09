@@ -1309,7 +1309,8 @@ async def watchdog():
 #=========================================
 
 #=========================================
-#9. MAIN
+#=========================================
+#9. MAIN (FINAL FIXED)
 #=========================================
 
 async def main():
@@ -1332,12 +1333,22 @@ async def main():
 
     try:
 
-        # Start Clients
+        print("🚀 Starting Ruhi Supreme...")
+
+        # Start Bot
         await bot.start()
 
+        print("✅ Bot Started")
+
+        # Start Assistant
         await assistant.start()
 
+        print("✅ Assistant Started")
+
+        # Start PyTgCalls
         await call_py.start()
+
+        print("✅ PyTgCalls Started")
 
         # Background Tasks
         asyncio.create_task(
@@ -1352,15 +1363,18 @@ async def main():
             "👑 RUHI SUPREME 5.6 FINAL MASTER BUILD LIVE"
         )
 
+        # Keep Alive
         await idle()
 
     except Exception as e:
 
-        logger.error(
+        logger.exception(
             f"Startup Error: {e}"
         )
 
     finally:
+
+        print("🛑 Stopping Ruhi Supreme...")
 
         with suppress(Exception):
 
@@ -1374,6 +1388,8 @@ async def main():
 
             await bot.stop()
 
+        print("✅ Shutdown Complete")
+
 
 #=========================================
 # RUN BOT
@@ -1381,4 +1397,10 @@ async def main():
 
 if __name__ == "__main__":
 
-    asyncio.run(main())
+    try:
+
+        asyncio.run(main())
+
+    except KeyboardInterrupt:
+
+        print("🛑 Bot Stopped By User")
