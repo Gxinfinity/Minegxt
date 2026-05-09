@@ -572,7 +572,8 @@ async def on_end(_, update):
 #=========================================
 
 #=========================================
-#6. VOICE ENGINE
+#=========================================
+#6. VOICE ENGINE (FINAL FIXED)
 #=========================================
 
 async def process_voice(chat_id, raw_bytes, user_id):
@@ -587,6 +588,9 @@ async def process_voice(chat_id, raw_bytes, user_id):
                 raw_bytes,
                 dtype=np.int16
             )
+
+            if len(audio_int16) < 1000:
+                return
 
             audio_float32 = np.interp(
                 np.linspace(
@@ -618,7 +622,11 @@ async def process_voice(chat_id, raw_bytes, user_id):
             clean = text
 
             for w in WAKE_WORDS:
-                clean = clean.replace(w, "").strip()
+
+                clean = clean.replace(
+                    w,
+                    ""
+                ).strip()
 
             now = time.time()
 
@@ -632,7 +640,11 @@ async def process_voice(chat_id, raw_bytes, user_id):
 
                 return await handle_play(
                     chat_id,
-                    clean.replace("play", "", 1).strip()
+                    clean.replace(
+                        "play",
+                        "",
+                        1
+                    ).strip()
                 )
 
             # Voice Stop Command
@@ -640,18 +652,28 @@ async def process_voice(chat_id, raw_bytes, user_id):
 
                 QUEUE[chat_id].clear()
 
-                await clear_queue_db(chat_id)
+                await clear_queue_db(
+                    chat_id
+                )
 
                 with suppress(Exception):
-                    await call_py.leave_group_call(chat_id)
 
-                ACTIVE_CALLS.discard(chat_id)
+                    await call_py.leave_group_call(
+                        chat_id
+                    )
+
+                ACTIVE_CALLS.discard(
+                    chat_id
+                )
 
                 return
 
             # Resume Position
             seek_pos = (
-                int(time.time() - PLAY_START_TIME[chat_id]) + 2
+                int(
+                    time.time()
+                    - PLAY_START_TIME[chat_id]
+                ) + 2
                 if chat_id in PLAY_START_TIME
                 else 0
             )
@@ -672,7 +694,9 @@ async def process_voice(chat_id, raw_bytes, user_id):
 
             except Exception as e:
 
-                logger.error(f"AI Gen Error: {e}")
+                logger.error(
+                    f"AI Gen Error: {e}"
+                )
 
                 ans = "Network issue 😭"
 
@@ -690,7 +714,9 @@ async def process_voice(chat_id, raw_bytes, user_id):
 
                 TTS_PLAYING[chat_id] = True
 
-                file = f"v_{uuid.uuid4().hex}.mp3"
+                file = (
+                    f"v_{uuid.uuid4().hex}.mp3"
+                )
 
                 try:
 
@@ -705,7 +731,10 @@ async def process_voice(chat_id, raw_bytes, user_id):
                     )
 
                     await asyncio.sleep(
-                        max(3, len(ans.split()) // 3)
+                        max(
+                            3,
+                            len(ans.split()) // 3
+                        )
                     )
 
                     if QUEUE.get(chat_id):
@@ -719,13 +748,16 @@ async def process_voice(chat_id, raw_bytes, user_id):
 
                 except Exception as e:
 
-                    logger.error(f"TTS Error: {e}")
+                    logger.error(
+                        f"TTS Error: {e}"
+                    )
 
                 finally:
 
                     TTS_PLAYING[chat_id] = False
 
                     with suppress(Exception):
+
                         os.remove(file)
 
         except Exception as e:
@@ -739,69 +771,90 @@ async def process_voice(chat_id, raw_bytes, user_id):
             IS_PROCESSING[chat_id] = False
 
 
-@call_py.on_raw_audio_received
-async def on_voice_frame(_, frame: AudioFrame):
+@call_py.on_raw_audio_received()
+async def on_voice_frame(_, frame):
 
-    chat_id = frame.chat_id
+    try:
 
-    if (
-        IS_PROCESSING[chat_id]
-        or TTS_LOCK[chat_id].locked()
-        or TTS_PLAYING[chat_id]
-    ):
-        return
+        chat_id = frame.chat_id
 
-    audio_np = np.frombuffer(
-        frame.data,
-        dtype=np.int16
-    )
+        if (
+            IS_PROCESSING[chat_id]
+            or TTS_LOCK[chat_id].locked()
+            or TTS_PLAYING[chat_id]
+        ):
+            return
 
-    if len(audio_np) == 0:
-        return
+        if not getattr(frame, "data", None):
+            return
 
-    energy = np.sqrt(
-        np.mean(
-            audio_np.astype(np.float32) ** 2
-        )
-    )
-
-    # Voice Detected
-    if energy > VAD_THRESHOLD:
-
-        AUDIO_BUFFER[chat_id].append(frame.data)
-
-        SILENCE_COUNT[chat_id] = 0
-
-        if len(AUDIO_BUFFER[chat_id]) > MAX_BUFFER_FRAMES:
-
-            AUDIO_BUFFER[chat_id].pop(0)
-
-    else:
-
-        SILENCE_COUNT[chat_id] += 1
-
-    # Process Speech
-    if (
-        SILENCE_COUNT[chat_id] > 20
-        and len(AUDIO_BUFFER[chat_id]) > 40
-    ):
-
-        data = b"".join(
-            AUDIO_BUFFER[chat_id]
+        audio_np = np.frombuffer(
+            frame.data,
+            dtype=np.int16
         )
 
-        AUDIO_BUFFER[chat_id].clear()
+        if len(audio_np) == 0:
+            return
 
-        SILENCE_COUNT[chat_id] = 0
-
-        asyncio.create_task(
-            process_voice(
-                chat_id,
-                data,
-                getattr(frame, "user_id", 0)
+        energy = np.sqrt(
+            np.mean(
+                audio_np.astype(
+                    np.float32
+                ) ** 2
             )
         )
 
+        # Voice Detected
+        if energy > VAD_THRESHOLD:
+
+            AUDIO_BUFFER[chat_id].append(
+                frame.data
+            )
+
+            SILENCE_COUNT[chat_id] = 0
+
+            if (
+                len(AUDIO_BUFFER[chat_id])
+                > MAX_BUFFER_FRAMES
+            ):
+
+                AUDIO_BUFFER[chat_id].pop(0)
+
+        else:
+
+            SILENCE_COUNT[chat_id] += 1
+
+        # Process Speech
+        if (
+            SILENCE_COUNT[chat_id] > 20
+            and len(AUDIO_BUFFER[chat_id]) > 40
+        ):
+
+            data = b"".join(
+                AUDIO_BUFFER[chat_id]
+            )
+
+            AUDIO_BUFFER[chat_id].clear()
+
+            SILENCE_COUNT[chat_id] = 0
+
+            asyncio.create_task(
+                process_voice(
+                    chat_id,
+                    data,
+                    getattr(
+                        frame,
+                        "user_id",
+                        0
+                    )
+                )
+            )
+
+    except Exception as e:
+
+        logger.error(
+            f"Voice Frame Error: {e}"
+        )
 #=========================================
 
 #=========================================
