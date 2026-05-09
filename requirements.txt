@@ -1,3 +1,7 @@
+# Runtime dependencies for Ruhi/Roohi Telegram Voice Assistant
+# Install with: python -m pip install -r requirements.txt
+
+aiohttp>=3.9.0
 aiosqlite>=0.19.0
 edge-tts>=6.1.0
 faster-whisper>=1.0.0
@@ -5,5 +9,6 @@ google-generativeai>=0.7.0
 numpy>=1.24.0
 py-tgcalls>=0.9.7
 Pyrogram>=2.0.106
+python-dotenv>=1.0.0
 TgCrypto>=1.2.5
 yt-dlp>=2024.8.6

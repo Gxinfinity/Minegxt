@@ -18,7 +18,7 @@ Ruhi is a Telegram bot + assistant account setup for group video chat music, voi
 
 ## Required environment variables
 
-Never hard-code production credentials in `bot.py`. Copy `.env.example` locally and fill in real values:
+Never hard-code production credentials in `bot.py`. Copy `.env.example` locally and fill in real values. `python-dotenv` is included in `requirements.txt`, so local `.env` files load automatically when you run `python bot.py`:
 
 ```bash
 cp .env.example .env
@@ -77,7 +77,7 @@ sudo journalctl -u ruhi -f
 This repo includes Heroku-ready files:
 
 - `Procfile` runs the bot as a worker dyno.
-- `requirements.txt` installs Python dependencies.
+- `requirements.txt` installs all Python runtime dependencies, including `python-dotenv` for VPS/local `.env` loading.
 - `runtime.txt` pins Python.
 - `Aptfile` installs `ffmpeg` through the Heroku Apt buildpack.
 - `app.json` documents required config vars and buildpacks.

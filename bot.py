@@ -12,6 +12,7 @@ import subprocess
 import urllib.parse
 import urllib.request
 import numpy as np
+from dotenv import load_dotenv
 
 from collections import defaultdict, deque
 from asyncio import Lock, Semaphore
@@ -50,6 +51,8 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger("RuhiSupreme")
+
+load_dotenv()
 
 
 def env_int(name, default=0):
