@@ -166,148 +166,276 @@ PLAY_COOLDOWN = defaultdict(
 #=========================================
 
 # =========================================
-# 2. DATABASE & PERSISTENCE
+# =========================================
+# 2. DATABASE & PERSISTENCE (FINAL FIXED)
 # =========================================
 
 async def init_db():
-    async with aiosqlite.connect("ruhi_supreme.db") as db:
+
+    async with aiosqlite.connect(
+        "ruhi_supreme.db"
+    ) as db:
+
         await db.execute(
-            "CREATE TABLE IF NOT EXISTS stats (user_id INTEGER PRIMARY KEY, score INTEGER DEFAULT 0)"
+            """
+            CREATE TABLE IF NOT EXISTS stats (
+                user_id INTEGER PRIMARY KEY,
+                score INTEGER DEFAULT 0
+            )
+            """
         )
 
         await db.execute(
-            "CREATE TABLE IF NOT EXISTS memory (chat_id INTEGER PRIMARY KEY, context TEXT)"
+            """
+            CREATE TABLE IF NOT EXISTS memory (
+                chat_id INTEGER PRIMARY KEY,
+                context TEXT
+            )
+            """
         )
 
         await db.execute(
-            "CREATE TABLE IF NOT EXISTS p_queue (chat_id INTEGER, title TEXT, url TEXT)"
+            """
+            CREATE TABLE IF NOT EXISTS p_queue (
+                chat_id INTEGER,
+                title TEXT,
+                url TEXT
+            )
+            """
         )
 
         await db.commit()
 
 
 async def update_score(user_id):
-    async with aiosqlite.connect("ruhi_supreme.db") as db:
 
-        await db.execute(
-            "INSERT OR REPLACE INTO stats (user_id, score) VALUES (?, COALESCE((SELECT score FROM stats WHERE user_id = ?), 0) + 1)",
-            (user_id, user_id)
+    try:
+
+        async with aiosqlite.connect(
+            "ruhi_supreme.db"
+        ) as db:
+
+            await db.execute(
+                """
+                INSERT INTO stats (
+                    user_id,
+                    score
+                )
+                VALUES (?, 1)
+                ON CONFLICT(user_id)
+                DO UPDATE SET
+                score = score + 1
+                """,
+                (user_id,)
+            )
+
+            await db.commit()
+
+    except Exception as e:
+
+        logger.error(
+            f"Update Score Error: {e}"
         )
-
-        await db.commit()
 
 
 async def save_chat_memory(chat_id):
 
-    context = json.dumps(list(CHAT_MEMORY[chat_id]))
+    try:
 
-    async with aiosqlite.connect("ruhi_supreme.db") as db:
-
-        await db.execute(
-            "INSERT OR REPLACE INTO memory VALUES (?, ?)",
-            (chat_id, context)
+        context = json.dumps(
+            list(CHAT_MEMORY[chat_id])
         )
 
-        await db.commit()
+        async with aiosqlite.connect(
+            "ruhi_supreme.db"
+        ) as db:
+
+            await db.execute(
+                """
+                INSERT OR REPLACE INTO memory
+                VALUES (?, ?)
+                """,
+                (
+                    chat_id,
+                    context
+                )
+            )
+
+            await db.commit()
+
+    except Exception as e:
+
+        logger.error(
+            f"Save Memory Error: {e}"
+        )
 
 
 async def load_memories():
 
-    async with aiosqlite.connect("ruhi_supreme.db") as db:
+    try:
 
-        async with db.execute("SELECT * FROM memory") as cursor:
+        async with aiosqlite.connect(
+            "ruhi_supreme.db"
+        ) as db:
 
-            async for row in cursor:
+            async with db.execute(
+                "SELECT * FROM memory"
+            ) as cursor:
 
-                if row[1]:
+                async for row in cursor:
 
-                    try:
-                        CHAT_MEMORY[row[0]] = deque(
-                            json.loads(row[1]),
-                            maxlen=5
-                        )
+                    if row[1]:
 
-                    except Exception as e:
-                        logger.error(f"Memory Load Error: {e}")
+                        try:
+
+                            CHAT_MEMORY[row[0]] = deque(
+                                json.loads(row[1]),
+                                maxlen=5
+                            )
+
+                        except Exception as e:
+
+                            logger.error(
+                                f"Memory Load Error: {e}"
+                            )
+
+    except Exception as e:
+
+        logger.error(
+            f"Load Memories Error: {e}"
+        )
 
 
 async def remove_song_db(chat_id, title):
 
-    async with aiosqlite.connect("ruhi_supreme.db") as db:
+    try:
 
-        await db.execute(
-            "DELETE FROM p_queue WHERE chat_id = ? AND title = ?",
-            (chat_id, title)
+        async with aiosqlite.connect(
+            "ruhi_supreme.db"
+        ) as db:
+
+            await db.execute(
+                """
+                DELETE FROM p_queue
+                WHERE chat_id = ?
+                AND title = ?
+                """,
+                (
+                    chat_id,
+                    title
+                )
+            )
+
+            await db.commit()
+
+    except Exception as e:
+
+        logger.error(
+            f"Remove Song DB Error: {e}"
         )
-
-        await db.commit()
 
 
 async def clear_queue_db(chat_id):
 
-    async with aiosqlite.connect("ruhi_supreme.db") as db:
+    try:
 
-        await db.execute(
-            "DELETE FROM p_queue WHERE chat_id = ?",
-            (chat_id,)
+        async with aiosqlite.connect(
+            "ruhi_supreme.db"
+        ) as db:
+
+            await db.execute(
+                """
+                DELETE FROM p_queue
+                WHERE chat_id = ?
+                """,
+                (chat_id,)
+            )
+
+            await db.commit()
+
+    except Exception as e:
+
+        logger.error(
+            f"Clear Queue DB Error: {e}"
         )
 
-        await db.commit()
-#=========================================
 
 # =========================================
-# 3. QUEUE RECOVERY (FIX 2 Applied)
+# 3. QUEUE RECOVERY (FINAL FIXED)
 # =========================================
 
 async def recover_queue():
 
     await asyncio.sleep(5)
 
-    async with aiosqlite.connect("ruhi_supreme.db") as db:
+    try:
 
-        async with db.execute("SELECT * FROM p_queue") as cursor:
+        async with aiosqlite.connect(
+            "ruhi_supreme.db"
+        ) as db:
 
-            async for row in cursor:
+            async with db.execute(
+                """
+                SELECT *
+                FROM p_queue
+                """
+            ) as cursor:
 
-                chat_id, title, url = row
+                async for row in cursor:
 
-                if not any(x["url"] == url for x in QUEUE[chat_id]):
+                    chat_id, title, url = row
 
-                    QUEUE[chat_id].append({
-                        "title": title,
-                        "url": url
-                    })
+                    if not any(
+                        x["url"] == url
+                        for x in QUEUE[chat_id]
+                    ):
 
-    for chat_id in list(QUEUE.keys()):
+                        QUEUE[chat_id].append(
+                            {
+                                "title": title,
+                                "url": url
+                            }
+                        )
 
-        if chat_id not in ACTIVE_CALLS:
+        for chat_id in list(QUEUE.keys()):
 
-            try:
+            if (
+                chat_id not in ACTIVE_CALLS
+                and QUEUE[chat_id]
+            ):
 
-                await call_py.join_group_call(
-                    chat_id,
-                    AudioPiped(
-                        "https://raw.githubusercontent.com/TheHamkerCat/WilliamButcherBot/master/cache/empty.aac"
+                try:
+
+                    await call_py.join_group_call(
+                        chat_id,
+                        AudioPiped(
+                            "https://raw.githubusercontent.com/TheHamkerCat/WilliamButcherBot/master/cache/empty.aac"
+                        )
                     )
-                )
 
-                ACTIVE_CALLS.add(chat_id)
+                    ACTIVE_CALLS.add(chat_id)
 
-                await asyncio.sleep(1)
-
-                # Improvement: Avoid duplicate tasks if QUEUE is populated
-                if QUEUE[chat_id]:
+                    await asyncio.sleep(2)
 
                     asyncio.create_task(
                         play_next(chat_id)
                     )
 
-            except Exception as e:
+                except Exception as e:
 
-                logger.error(
-                    f"Recovery Fail in {chat_id}: {e}"
-                )
+                    logger.error(
+                        f"Recovery Fail in {chat_id}: {e}"
+                    )
 
+        logger.info(
+            "✅ Queue Recovery Complete"
+        )
+
+    except Exception as e:
+
+        logger.error(
+            f"Recover Queue Error: {e}"
+        )
 #=========================================
 
 #=========================================
