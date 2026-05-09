@@ -1,0 +1,49 @@
+{
+  "name": "Ruhi Roohi Voice Assistant",
+  "description": "Telegram group VC music, voice command, AI, search, quiz, and games assistant.",
+  "repository": "https://github.com/your-username/mineruhi",
+  "keywords": ["telegram", "pyrogram", "voice-chat", "music", "assistant", "ruhi"],
+  "stack": "heroku-22",
+  "buildpacks": [
+    { "url": "heroku-community/apt" },
+    { "url": "heroku/python" }
+  ],
+  "env": {
+    "API_ID": {
+      "description": "Telegram API ID from https://my.telegram.org",
+      "required": true
+    },
+    "API_HASH": {
+      "description": "Telegram API hash from https://my.telegram.org",
+      "required": true
+    },
+    "BOT_TOKEN": {
+      "description": "Bot token from @BotFather",
+      "required": true
+    },
+    "SESSION_STRING": {
+      "description": "Pyrogram session string for the assistant/user account that joins group VC",
+      "required": true
+    },
+    "GEMINI_API_KEY": {
+      "description": "Optional Gemini API key for AI chat and generated quiz questions",
+      "required": false
+    },
+    "RUHI_DEFAULT_VOICE": {
+      "description": "Default Edge TTS voice",
+      "value": "hi-IN-SwaraNeural",
+      "required": false
+    },
+    "LOGGER_ID": {
+      "description": "Optional Telegram log chat ID",
+      "value": "-1003009782265",
+      "required": false
+    }
+  },
+  "formation": {
+    "worker": {
+      "quantity": 1,
+      "size": "basic"
+    }
+  }
+}

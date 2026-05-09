@@ -1,0 +1,17 @@
+[Unit]
+Description=Ruhi Roohi Telegram Voice Assistant
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/mineruhi
+EnvironmentFile=/opt/mineruhi/.env
+ExecStart=/opt/mineruhi/.venv/bin/python /opt/mineruhi/bot.py
+Restart=always
+RestartSec=10
+User=ruhi
+Group=ruhi
+
+[Install]
+WantedBy=multi-user.target

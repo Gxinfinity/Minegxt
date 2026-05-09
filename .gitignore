@@ -1,0 +1,11 @@
+.env
+.venv/
+__pycache__/
+*.py[cod]
+ruhi_supreme.db
+*.session
+*.session-journal
+raw_*.raw
+v_*.wav
+v_*.ogg
+tts_*.mp3
