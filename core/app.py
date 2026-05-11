@@ -30,7 +30,7 @@ log = logging.getLogger("ruhi.app")
 
 class RuhiApplication:
 
-def __init__(self, settings: Settings):
+    def __init__(self, settings: Settings):
 
     self.settings = settings
 
