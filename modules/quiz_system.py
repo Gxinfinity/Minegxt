@@ -40,10 +40,14 @@ from datetime import (
 )
 
 # =========================================================
+# =========================================================
 # PYROGRAM
 # =========================================================
 
-from pyrogram import filters
+from pyrogram import (
+    Client,
+    filters
+)
 
 from pyrogram.types import (
     Message,
@@ -62,14 +66,30 @@ from pyrogram.errors import (
     FloodWait
 )
 
-from pyrogram import Client
-
-bot = Client("quiz_placeholder")
-assistant = Client("assistant_placeholder")
-
 # =========================================================
-# CLIENTS
+# MAIN BOT CLIENTS
 # =========================================================
+
+from config import (
+    API_ID,
+    API_HASH,
+    BOT_TOKEN,
+    STRING_SESSION
+)
+
+bot = Client(
+    "ruhi_quiz_bot",
+    api_id=API_ID,
+    api_hash=API_HASH,
+    bot_token=BOT_TOKEN
+)
+
+assistant = Client(
+    "ruhi_quiz_assistant",
+    api_id=API_ID,
+    api_hash=API_HASH,
+    session_string=STRING_SESSION
+) =========================================================
 
 
 
