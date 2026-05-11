@@ -62,6 +62,11 @@ from pyrogram.errors import (
     FloodWait
 )
 
+from core.app import app
+
+bot = app.bot
+assistant = app.assistant
+
 # =========================================================
 # CLIENTS
 # =========================================================
@@ -8305,20 +8310,3 @@ print("""
 """)
 
 # =========================================================
-# CLIENT ATTACHER
-# =========================================================
-
-def setup_quiz_clients(
-    main_bot,
-    main_assistant
-):
-
-    global bot
-    global assistant
-
-    bot = main_bot
-    assistant = main_assistant
-
-    logger.info(
-        "✅ Quiz Clients Attached"
-    )
