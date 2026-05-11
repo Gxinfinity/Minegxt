@@ -7229,8 +7229,11 @@ Accuracy: {row[3]}%
             )
 
 # =========================================================
+# =========================================================
 # BACKGROUND STARTER
 # =========================================================
+
+BACKGROUND_TASKS = []
 
 async def start_background_systems(
 
@@ -7238,25 +7241,43 @@ async def start_background_systems(
     assistant
 ):
 
-    asyncio.create_task(
-        auto_backup()
-    )
+    try:
 
-    asyncio.create_task(
-        memory_optimizer()
-    )
+        BACKGROUND_TASKS.append(
 
-    asyncio.create_task(
-        anti_crash_system(
-            bot,
-            assistant
+            asyncio.create_task(
+                auto_backup()
+            )
         )
-    )
 
-    logger.info(
-        "🚀 Background Systems Started"
-    )
+        BACKGROUND_TASKS.append(
 
+            asyncio.create_task(
+                memory_optimizer()
+            )
+        )
+
+        BACKGROUND_TASKS.append(
+
+            asyncio.create_task(
+                anti_crash_system(
+                    bot,
+                    assistant
+                )
+            )
+        )
+
+        logger.info(
+            "🚀 Background Systems Started"
+        )
+
+    except Exception as e:
+
+        logger.error(
+            f"Background System Error: {e}"
+        )
+
+# =========================================================
 # =========================================================
 # FINAL QUIZ LOADER
 # =========================================================
@@ -7264,20 +7285,42 @@ async def start_background_systems(
 async def final_quiz_loader(
 
     bot,
-    assistant
+    assistant,
+    ai_model
 ):
 
     try:
 
+        # =============================================
+        # DATABASE INIT
+        # =============================================
+
         await init_quiz_system()
 
         await init_study_planner()
+
+        # =============================================
+        # PART 12 ADMIN + SECURITY
+        # =============================================
+
+        register_part12_handlers(
+
+            bot,
+            assistant,
+            ai_model
+        )
+
+        # =============================================
+        # BACKGROUND SYSTEMS
+        # =============================================
 
         await start_background_systems(
 
             bot,
             assistant
         )
+
+        await start_part12_services()
 
         logger.info(
             "👑 FINAL QUIZ SYSTEM READY"
@@ -7288,7 +7331,6 @@ async def final_quiz_loader(
         logger.error(
             f"Final Loader Error: {e}"
         )
-
 # =========================================================
 # HOW TO LOAD
 # =========================================================
