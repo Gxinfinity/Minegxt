@@ -15,6 +15,9 @@ from core.logging import setup_logging
 from database.repository import Repository
 from modules.handlers import TelegramHandlers
 import modules.quiz_system
+from modules.quiz_system import (
+    setup_quiz_clients
+)
 from music.player import MusicPlayer
 from services.ai_service import AIService
 from services.search_service import SearchService
@@ -97,6 +100,10 @@ class RuhiApplication:
 
         await self.assistant.start()
 
+        setup_quiz_clients(
+            self.bot,
+            self.assistant
+        )
         await self.calls.start()
 
         self.tasks.append(
