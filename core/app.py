@@ -52,11 +52,18 @@ def __init__(self, settings: Settings):
 
     self.calls = PyTgCalls(self.assistant)
 
-    self.music = MusicPlayer(self.calls, settings, self.repo)
+    self.music = MusicPlayer(
+        self.calls,
+        settings,
+        self.repo
+    )
 
     self.tts = TTSService(settings)
 
-    self.ai = AIService(settings, self.repo)
+    self.ai = AIService(
+        settings,
+        self.repo
+    )
 
     self.weather = WeatherService(settings)
 
@@ -159,15 +166,21 @@ for sig in (signal.SIGINT, signal.SIGTERM):
 
         loop.add_signal_handler(
             sig,
-            lambda: asyncio.create_task(app.stop())
+            lambda: asyncio.create_task(
+                app.stop()
+            )
         )
 
 try:
 
-    loop.run_until_complete(app.start())
+    loop.run_until_complete(
+        app.start()
+    )
 
 finally:
 
-    loop.run_until_complete(app.stop())
+    loop.run_until_complete(
+        app.stop()
+    )
 
     loop.close()
