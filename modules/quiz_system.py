@@ -2,28 +2,162 @@
 # RUHI ULTIMATE QUIZ SYSTEM
 # NEW MODULAR STRUCTURE
 # File: modules/quiz_system.py
-# PART 1
+# FINAL IMPORTS — PART 1 TO PART 12
 # =========================================================
 
 from __future__ import annotations
 
-import asyncio
+# =========================================================
+# PYTHON IMPORTS
+# =========================================================
+
+import os
+import gc
+import uuid
+import time
+import json
+import shutil
 import random
 import logging
-import time
+import asyncio
+import psutil
+import numpy as np
 import aiosqlite
 
-from collections import defaultdict
+from contextlib import suppress
+
+from collections import (
+    defaultdict,
+    deque
+)
+
+from datetime import (
+    datetime,
+    timedelta
+)
+
+# =========================================================
+# PYROGRAM
+# =========================================================
+
 from pyrogram import filters
 
 from pyrogram.types import (
     Message,
+    CallbackQuery,
     InlineKeyboardMarkup,
     InlineKeyboardButton,
-    CallbackQuery
+    Poll
 )
 
-logger = logging.getLogger("ruhi.quiz")
+from pyrogram.enums import (
+    ChatType
+)
+
+from pyrogram.errors import (
+    FloodWait
+)
+
+# =========================================================
+# AI / TTS / WHISPER
+# =========================================================
+
+import edge_tts
+
+import google.generativeai as genai
+
+from faster_whisper import (
+    WhisperModel
+)
+
+# =========================================================
+# LOGGER
+# =========================================================
+
+logger = logging.getLogger(
+    "ruhi.quiz"
+)
+
+# =========================================================
+# GLOBAL DATABASE
+# =========================================================
+
+QUIZ_DB = "quiz_system.db"
+
+# =========================================================
+# GLOBAL CACHES
+# =========================================================
+
+ACTIVE_QUIZ = defaultdict(dict)
+
+ACTIVE_AI_QUIZ = {}
+
+ACTIVE_BATTLES = {}
+
+TOURNAMENTS = {}
+
+DUELS = {}
+
+POLL_CACHE = {}
+
+GROUP_QUIZ = defaultdict(bool)
+
+USER_XP = defaultdict(int)
+
+USER_CACHE = defaultdict(dict)
+
+USER_STREAK = defaultdict(int)
+
+QUIZ_HISTORY = defaultdict(list)
+
+RAPID_FIRE = {}
+
+DAILY_CHALLENGE = {}
+
+GROUP_STATS = defaultdict(
+    lambda: {
+        "quiz": 0,
+        "correct": 0,
+        "wrong": 0
+    }
+)
+
+# =========================================================
+# ADMIN + SECURITY
+# =========================================================
+
+SUPER_ADMINS = set()
+
+BANNED_USERS = set()
+
+SPAM_TRACK = defaultdict(list)
+
+BOT_SETTINGS = {
+
+    "quiz_enabled": True,
+    "ai_enabled": True,
+    "voice_enabled": True,
+    "maintenance": False
+}
+
+# =========================================================
+# BACKUP
+# =========================================================
+
+BACKUP_DIR = "quiz_backups"
+
+os.makedirs(
+    BACKUP_DIR,
+    exist_ok=True
+)
+
+# =========================================================
+# LOGGER READY
+# =========================================================
+
+logger.info(
+    "🔥 Quiz System Imports Loaded"
+)
 
 # =========================================================
 # DATABASE
