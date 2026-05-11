@@ -1,17 +1,33 @@
 # =========================================================
 # RUHI ULTIMATE QUIZ SYSTEM
 # File: modules/quiz_system.py
+# UPDATED GOD VERSION
 # =========================================================
 
-import asyncio
+import os
+import gc
+import uuid
 import random
+import asyncio
+import logging
 import time
 import json
+import shutil
 import aiosqlite
+import numpy as np
 
-from collections import defaultdict
+from collections import (
+    defaultdict,
+    deque
+)
+
+from datetime import (
+    datetime,
+    timedelta
+)
 
 from pyrogram import filters
+
 from pyrogram.types import (
     Message,
     InlineKeyboardMarkup,
@@ -20,14 +36,22 @@ from pyrogram.types import (
     Poll
 )
 
-from pyrogram.enums import ChatType
+from pyrogram.enums import (
+    ChatType
+)
 
 from contextlib import suppress
 
-from __main__ import (
+import edge_tts
+import google.generativeai as genai
+
+from faster_whisper import WhisperModel
+
+from main import (
     bot,
     ai_model,
-    logger
+    logger,
+    VOICE
 )
 
 # =========================================================
