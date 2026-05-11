@@ -2,7 +2,8 @@
 # RUHI ULTIMATE QUIZ SYSTEM
 # NEW MODULAR STRUCTURE
 # File: modules/quiz_system.py
-# FINAL IMPORTS — PART 1 TO PART 12
+# FINAL IMPORTS + AI SETUP
+# PART 1 TO PART 12 READY
 # =========================================================
 
 from __future__ import annotations
@@ -23,6 +24,8 @@ import asyncio
 import psutil
 import numpy as np
 import aiosqlite
+
+from pathlib import Path
 
 from contextlib import suppress
 
@@ -51,11 +54,21 @@ from pyrogram.types import (
 )
 
 from pyrogram.enums import (
-    ChatType
+    ChatType,
+    ChatMemberStatus
 )
 
 from pyrogram.errors import (
     FloodWait
+)
+
+# =========================================================
+# CLIENTS
+# =========================================================
+
+from core.clients import (
+    bot,
+    assistant
 )
 
 # =========================================================
@@ -65,6 +78,8 @@ from pyrogram.errors import (
 import edge_tts
 
 import google.generativeai as genai
+
+from openai import AsyncOpenAI
 
 from faster_whisper import (
     WhisperModel
@@ -79,13 +94,82 @@ logger = logging.getLogger(
 )
 
 # =========================================================
-# GLOBAL DATABASE
+# OPENROUTER AI
+# =========================================================
+
+OPENROUTER_API_KEY = os.getenv(
+    "OPENROUTER_API_KEY",
+    ""
+)
+
+openrouter_client = AsyncOpenAI(
+
+    api_key=OPENROUTER_API_KEY,
+
+    base_url="https://openrouter.ai/api/v1"
+)
+
+OPENROUTER_MODEL = (
+    "deepseek/deepseek-chat-v3-0324:free"
+)
+
+# =========================================================
+# GEMINI BACKUP
+# =========================================================
+
+GEMINI_API_KEY = os.getenv(
+    "GEMINI_API_KEY",
+    ""
+)
+
+if GEMINI_API_KEY:
+
+    genai.configure(
+        api_key=GEMINI_API_KEY
+    )
+
+    ai_model = genai.GenerativeModel(
+        "gemini-1.5-flash"
+    )
+
+else:
+
+    ai_model = None
+
+# =========================================================
+# WHISPER
+# =========================================================
+
+try:
+
+    whisper_model = WhisperModel(
+        "base",
+        device="cpu",
+        compute_type="int8"
+    )
+
+except Exception as e:
+
+    logger.error(
+        f"Whisper Load Error: {e}"
+    )
+
+    whisper_model = None
+
+# =========================================================
+# VOICE
+# =========================================================
+
+VOICE = "en-US-JennyNeural"
+
+# =========================================================
+# DATABASE
 # =========================================================
 
 QUIZ_DB = "quiz_system.db"
 
 # =========================================================
-# GLOBAL CACHES
+# GLOBAL STATES
 # =========================================================
 
 ACTIVE_QUIZ = defaultdict(dict)
@@ -152,13 +236,87 @@ os.makedirs(
 )
 
 # =========================================================
-# LOGGER READY
+# SUBJECTS
+# =========================================================
+
+SUBJECTS = {
+
+    "🧠 General Knowledge": [
+        "Current Affairs",
+        "Static GK",
+        "World Affairs",
+        "Indian Affairs",
+        "Sports GK"
+    ],
+
+    "🔬 Science": [
+        "Physics",
+        "Chemistry",
+        "Biology",
+        "Mathematics",
+        "Biotechnology"
+    ],
+
+    "💊 Pharmacy": [
+        "Pharmacology",
+        "Pharmaceutics",
+        "Medicinal Chemistry",
+        "Pharmacognosy",
+        "Industrial Pharmacy",
+        "Biostatistics",
+        "Jurisprudence"
+    ],
+
+    "⚙ Engineering": [
+        "Computer Science",
+        "Mechanical",
+        "Civil",
+        "Electrical",
+        "AI",
+        "Machine Learning"
+    ],
+
+    "🩺 Medical": [
+        "Human Anatomy",
+        "Physiology",
+        "Pathology",
+        "Microbiology",
+        "Genetics"
+    ],
+
+    "💻 IT": [
+        "Python",
+        "Java",
+        "C++",
+        "Cyber Security",
+        "Networking",
+        "Web Development"
+    ]
+}
+
+# =========================================================
+# ALL SUBJECTS
+# =========================================================
+
+ALL_SUBJECTS = []
+
+for category in SUBJECTS.values():
+
+    for subject in category:
+
+        if subject not in ALL_SUBJECTS:
+
+            ALL_SUBJECTS.append(
+                subject
+            )
+
+# =========================================================
+# READY
 # =========================================================
 
 logger.info(
-    "🔥 Quiz System Imports Loaded"
+    "🔥 RUHI QUIZ SYSTEM FULLY LOADED"
 )
-
 # =========================================================
 # DATABASE
 # =========================================================
