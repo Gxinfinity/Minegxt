@@ -47,12 +47,9 @@ import google.generativeai as genai
 
 from faster_whisper import WhisperModel
 
-from main import (
-    bot,
-    ai_model,
-    logger,
-    VOICE
-)
+import logging
+
+logger = logging.getLogger("ruhi.quiz")
 
 # =========================================================
 # DATABASE
