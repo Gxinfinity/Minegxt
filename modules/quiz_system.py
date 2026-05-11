@@ -70,10 +70,21 @@ from pyrogram.errors import (
 # MAIN BOT CLIENTS
 # =========================================================
 
-bot = None
-assistant = None
+from pyrogram import Client
 
+bot = Client(
+    "quiz_temp_bot",
+    api_id=12345,
+    api_hash="abc123",
+    bot_token="123:abc"
+)
 
+assistant = Client(
+    "quiz_temp_assistant",
+    api_id=12345,
+    api_hash="abc123",
+    session_string="dummy"
+)
 
 
 # =========================================================
