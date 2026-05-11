@@ -93,6 +93,8 @@ logger = logging.getLogger(
     "ruhi.quiz"
 )
 
+bot = None
+assistant = None
 # =========================================================
 # OPENROUTER AI
 # =========================================================
@@ -8305,3 +8307,21 @@ print("""
 
 """)
 
+# =========================================================
+# CLIENT ATTACHER
+# =========================================================
+
+def setup_quiz_clients(
+    main_bot,
+    main_assistant
+):
+
+    global bot
+    global assistant
+
+    bot = main_bot
+    assistant = main_assistant
+
+    logger.info(
+        "✅ Quiz Clients Attached"
+    )
