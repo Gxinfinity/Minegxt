@@ -452,7 +452,7 @@ async def callbacks(_, callback: CallbackQuery):
         )
     )
 
-await callback.answer(
-    "🔥 Feature Active",
-    show_alert=False
-)
+    await callback.answer(
+        "🔥 Feature Active",
+        show_alert=False
+    )
