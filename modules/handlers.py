@@ -6,17 +6,23 @@ from contextlib import suppress
 from pathlib import Path
 
 from pyrogram import Client, filters
-from pyrogram.enums import ChatMemberStatus, ChatType
+
+from pyrogram.enums import (
+    ChatMemberStatus,
+    ChatType,
+    ButtonStyle
+)
+
 from pyrogram.types import (
     CallbackQuery,
-    InlineKeyboardButton,
     InlineKeyboardMarkup,
     Message
 )
 
+from kurigram.types import InlineKeyboardButton
+
 from ai.intent import IntentRouter
 from services.tts_service import LANGUAGE_VOICES
-
  =========================================================
 # START + INTRO UI UPGRADE
 # ADD THIS INSIDE _command()
@@ -40,53 +46,63 @@ from services.tts_service import LANGUAGE_VOICES
 if cmd == "start":
 
     START_TEXT = """
-✨ **Ruhi Supreme AI Online Hai!**
+✨ **𝗥𝘂𝗵𝗶 𝗦𝘂𝗽𝗿𝗲𝗺𝗲 𝗔𝗜 𝗜𝘀 𝗢𝗻𝗹𝗶𝗻𝗲 💫**
 
-🧠 AI + 📚 Quiz + 🎮 Games + 🎵 Music
+╭━━━━━━━━━━━━━━━╮
+┃ 🧠 𝗔𝗜 𝗔𝘀𝘀𝗶𝘀𝘁𝗮𝗻𝘁
+┃ 📚 𝗤𝘂𝗶𝘇 𝗦𝘆𝘀𝘁𝗲𝗺
+┃ 🎮 𝗙𝘂𝗻 & 𝗚𝗮𝗺𝗲𝘀
+┃ 🎵 𝗩𝗖 𝗠𝘂𝘀𝗶𝗰 𝗣𝗹𝗮𝘆𝗲𝗿
+┃ 🌦 𝗪𝗲𝗮𝘁𝗵𝗲𝗿
+┃ 🎤 𝗩𝗼𝗶𝗰𝗲 𝗔𝗜
+╰━━━━━━━━━━━━━━━╯
+
+⚡ 𝗣𝗼𝘄𝗲𝗿𝗲𝗱 𝗕𝘆 𝗥𝘂𝗵𝗶 𝗦𝘂𝗽𝗿𝗲𝗺𝗲 𝗘𝗻𝗴𝗶𝗻𝗲
+🔥 𝗙𝗮𝘀𝘁 • 𝗦𝗺𝗮𝗿𝘁 • 𝗣𝗼𝘄𝗲𝗿𝗳𝘂𝗹
 
 ━━━━━━━━━━━━━━━━━━
-⚡ Powered By Ruhi AI Engine
-🎤 Smart Voice Assistant
-📖 Advanced Quiz System
-🎶 VC Music Streaming
-🎮 Fun & Multiplayer Games
+💡 𝗦𝗲𝗹𝗲𝗰𝘁 𝗔 𝗦𝗲𝗰𝘁𝗶𝗼𝗻 𝗕𝗲𝗹𝗼𝘄
 ━━━━━━━━━━━━━━━━━━
-
-🔥 Use Buttons Below
 """
 
     START_BUTTONS = InlineKeyboardMarkup(
         [
             [
                 InlineKeyboardButton(
-                    "🧠 AI",
-                    callback_data="intro_ai"
+                    text="🧠 𝗔𝗜",
+                    callback_data="intro_ai",
+                    style=ButtonStyle.PRIMARY
                 ),
                 InlineKeyboardButton(
-                    "📚 Quiz",
-                    callback_data="intro_quiz"
+                    text="📚 𝗤𝘂𝗶𝘇",
+                    callback_data="intro_quiz",
+                    style=ButtonStyle.SUCCESS
                 )
             ],
             [
                 InlineKeyboardButton(
-                    "🎵 Music",
-                    callback_data="intro_music"
+                    text="🎵 𝗠𝘂𝘀𝗶𝗰",
+                    callback_data="intro_music",
+                    style=ButtonStyle.DANGER
                 ),
                 InlineKeyboardButton(
-                    "🎮 Games",
-                    callback_data="intro_games"
+                    text="🎮 𝗚𝗮𝗺𝗲𝘀",
+                    callback_data="intro_games",
+                    style=ButtonStyle.SECONDARY
                 )
             ],
             [
                 InlineKeyboardButton(
-                    "⚡ Features",
-                    callback_data="intro_features"
+                    text="⚡ 𝗙𝗲𝗮𝘁𝘂𝗿𝗲𝘀",
+                    callback_data="intro_features",
+                    style=ButtonStyle.PRIMARY
                 )
             ],
             [
                 InlineKeyboardButton(
-                    "➕ Add Me",
-                    url="https://t.me/YOUR_BOT_USERNAME?startgroup=true"
+                    text="➕ 𝗔𝗱𝗱 𝗠𝗲 𝗧𝗼 𝗬𝗼𝘂𝗿 𝗚𝗿𝗼𝘂𝗽",
+                    url="https://t.me/YOUR_BOT_USERNAME?startgroup=true",
+                    style=ButtonStyle.SUCCESS
                 )
             ]
         ]
@@ -97,8 +113,6 @@ if cmd == "start":
         caption=START_TEXT,
         reply_markup=START_BUTTONS
     )
-
-
 # =====================================================
 # REPLACE OLD INTRO BLOCK INSIDE _command()
 # =====================================================
