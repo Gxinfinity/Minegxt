@@ -395,8 +395,7 @@ async def callbacks(_, callback: CallbackQuery):
 
     elif callback.data == "intro_back":
 
-        return await 
-    callback.message.edit_caption(
+    return await callback.message.edit_caption(
         caption="""
 ✨ **𝗥𝘂𝗵𝗶 𝗦𝘂𝗽𝗿𝗲𝗺𝗲 𝗔𝗜 💫**
 
@@ -451,9 +450,4 @@ async def callbacks(_, callback: CallbackQuery):
                 ]
             ]
         )
-    )
-
-    await callback.answer(
-        "🔥 Feature Active",
-        show_alert=False
     )
